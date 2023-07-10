@@ -1,1 +1,1 @@
-# ChemRxnAIGen
+# Automated Generation of Chemical Reactions
