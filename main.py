@@ -4,6 +4,7 @@ import json
 import sys
 import numpy as np
 import torch
+import random
 
 from train import LSTMLMTrainer, VAETrainer
 from generate import LSTMLMGenerator, VAEGenerator
@@ -92,6 +93,8 @@ else:
 config.cuda = not config.no_cuda and torch.cuda.is_available()
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
+random.seed(config.seed)
+
 if config.cuda:
     torch.cuda.manual_seed(config.seed)
     torch.backends.cudnn.deterministic = True
