@@ -85,11 +85,11 @@ class VAE(nn.Module):
             Tensor3: KL loss shape [batch]
         """
 
-        z, KL = self.encode(x, nsamples)
+        z, KL = self.encode(src, nsamples)
 
         # (batch)
         reconstruct_err = self.decoder.reconstruct_error(
-            src, target, z).mean(dim=1)
+            src, z).mean(dim=1)
 
         return reconstruct_err + kl_weight * KL, reconstruct_err, KL
 

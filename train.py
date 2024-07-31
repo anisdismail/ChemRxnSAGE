@@ -12,6 +12,7 @@ from models.LSTM_Decoder import LSTMDecoder
 from models.LSTM_Encoder import LSTMEncoder
 from dataloader import DataIterator
 from eval import generate_metrics_evaluation
+# TODO: fix seeds
 
 
 class LSTMLMTrainer:

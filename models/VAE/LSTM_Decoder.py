@@ -5,6 +5,8 @@ from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
 import numpy as np
 
+# TODO: provide reference where I brought the og implementation
+
 
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
@@ -116,6 +118,7 @@ class LSTMDecoder(nn.Module):
         # end_symbol = torch.tensor([0] * batch_size, dtype=torch.long, device=self.device)
 
         mask = torch.ones((batch_size), dtype=torch.uint8, device=self.device)
+        # TODO: investigate this number of maximum characters
         length_c = 1
         while length_c <= 201:
 
@@ -145,7 +148,7 @@ class LSTMDecoder(nn.Module):
 
         return decoded_batch
 
-    def reconstruct_error(self, src, target, z):
+    def reconstruct_error(self, src, z):
         """Cross Entropy in the language case
         Args:
             x: (batch_size, seq_len)
