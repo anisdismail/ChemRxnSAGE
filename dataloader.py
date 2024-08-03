@@ -5,7 +5,7 @@ import torch
 
 class DataIterator:
 
-    def __init__(self, data_file, batch_size):
+    def __init__(self, data_file, batch_size, PAD_TOKEN):
         super(DataIterator, self).__init__()
         self.batch_size = batch_size
         self.data_lis = self.read_file(data_file)
@@ -13,7 +13,7 @@ class DataIterator:
         self.indices = range(self.data_num)
         self.num_batches = math.ceil(self.data_num / self.batch_size)
         self.idx = 0
-        self.pad_token = 3
+        self.pad_token = PAD_TOKEN
         self.reset()
 
     def __len__(self):

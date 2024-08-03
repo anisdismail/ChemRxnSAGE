@@ -41,13 +41,15 @@ class LSTMLMTrainer:
             cudnn.benchmark = True
         self.gen_optimizer = optim.Adam(
             params=self.generator.parameters(), lr=config["gen_lr"])
-        self.train_iter = DataIterator(self.train_path, config["batch_size"])
-        self.eval_iter = DataIterator(self.val_path, config["batch_size"])
 
         spm.SentencePieceTrainer.train(
             "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1")
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load('m.model')
+        self.train_iter = DataIterator(
+            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+        self.eval_iter = DataIterator(
+            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
 
     def train(self):
         print('#####################################################')
@@ -136,13 +138,14 @@ class VAETrainer:
         with open(os.path.join(config["data_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
             self.centroids_strings = np.loadtxt(f)
 
-        self.train_iter = DataIterator(self.train_path, config["batch_size"])
-        self.eval_iter = DataIterator(self.val_path, config["batch_size"])
-
         spm.SentencePieceTrainer.train(
             "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1")
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load('m.model')
+        self.train_iter = DataIterator(
+            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+        self.eval_iter = DataIterator(
+            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
         self.config = config
         self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
         model_init = uniform_initializer(0.01)
@@ -151,7 +154,7 @@ class VAETrainer:
         self.encoder = LSTMEncoder(
             self.config, config["vocab_size"], model_init, emb_init)
         self.decoder = LSTMDecoder(
-            self.config, model_init, emb_init, self.tokenizer.encode_as_ids("[BOS]")[1])
+            self.config, model_init, emb_init, self.tokenizer.encode_as_ids("[BOS]")[1], self.tokenizer.encode_as_ids("[EOS]")[1])
         self.vae = VAE(self.encoder, self.decoder, self.config).to(self.device)
 
         self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(),
