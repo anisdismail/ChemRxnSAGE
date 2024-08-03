@@ -11,36 +11,36 @@ import numpy as np
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
 
-    def __init__(self, args, model_init, emb_init, BOS_token, EOS_token):
+    def __init__(self, config, model_init, emb_init, BOS_token, EOS_token):
         super().__init__()
-        self.ni = args["ni"]
-        self.nh = args["dec_nh"]
-        self.nz = args["nz"]
+        self.ni = config["ni"]
+        self.nh = config["dec_nh"]
+        self.nz = config["nz"]
         self.bos_token = BOS_token
         self.eos_token = EOS_token
-        self.device = torch.device("cuda" if args["cuda"] else "cpu")
+        self.device = torch.device("cuda" if config["cuda"] else "cpu")
 
         # no padding when setting padding_idx to -1
         self.embed = nn.Embedding(
-            args['vocab_size'], args["ni"], padding_idx=-1)
+            config['vocab_size'], config["ni"], padding_idx=-1)
 
-        self.dropout_in = nn.Dropout(args["dec_dropout_in"])
-        self.dropout_out = nn.Dropout(args["dec_dropout_out"])
+        self.dropout_in = nn.Dropout(config["dec_dropout_in"])
+        self.dropout_out = nn.Dropout(config["dec_dropout_out"])
 
         # for initializing hidden state and cell
-        self.trans_linear = nn.Linear(args["nz"], args["dec_nh"], bias=False)
+        self.trans_linear = nn.Linear(config["nz"], config["dec_nh"], bias=False)
 
         # concatenate z with input
-        self.lstm = nn.LSTM(input_size=args["ni"] + args["nz"],
-                            hidden_size=args["dec_nh"],
+        self.lstm = nn.LSTM(input_size=config["ni"] + config["nz"],
+                            hidden_size=config["dec_nh"],
                             num_layers=1,
                             batch_first=True)
 
         # prediction layer
         self.pred_linear = nn.Linear(
-            args["dec_nh"], args['vocab_size'], bias=False)
+            config["dec_nh"], config['vocab_size'], bias=False)
 
-        vocab_mask = torch.ones(args['vocab_size'])
+        vocab_mask = torch.ones(config['vocab_size'])
         # vocab_mask[vocab['[PAD]']] = 0
         self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
 
@@ -226,11 +226,11 @@ class LSTMDecoder(nn.Module):
 class VarLSTMDecoder(LSTMDecoder):
     """LSTM decoder with variable-length batching"""
 
-    def __init__(self, args, vocab, model_init, emb_init):
-        super(VarLSTMDecoder, self).__init__(args, vocab, model_init, emb_init)
+    def __init__(self, config, vocab, model_init, emb_init):
+        super(VarLSTMDecoder, self).__init__(config, vocab, model_init, emb_init)
 
         self.embed = nn.Embedding(
-            len(vocab), args.ni, padding_idx=vocab['<pad>'])
+            len(vocab), config.ni, padding_idx=vocab['<pad>'])
         vocab_mask = torch.ones(len(vocab))
         vocab_mask[vocab['<pad>']] = 0
         self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')

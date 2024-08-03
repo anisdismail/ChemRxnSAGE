@@ -9,14 +9,14 @@ import numpy as np
 class VAE(nn.Module):
     """VAE with normal prior"""
 
-    def __init__(self, encoder, decoder, args):
+    def __init__(self, encoder, decoder, config):
         super(VAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.args = args
+        self.config = config
 
-        self.nz = args["nz"]
-        self.device = 'cuda' if args["cuda"] else 'cpu'
+        self.nz = config["nz"]
+        self.device = 'cuda' if config["cuda"] else 'cpu'
         loc = torch.zeros(self.nz, device=self.device)
         scale = torch.ones(self.nz, device=self.device)
 

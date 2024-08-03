@@ -29,18 +29,6 @@ class LSTMLMTrainer:
         with open(os.path.join(config["data_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
             self.centroids_strings = np.loadtxt(f)
 
-        # Set models, criteria, optimizers
-        self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['g_embed_dim'],
-                                 hidden_dim=config['g_hidden_dim'], num_layers=config['g_num_layers'], use_cuda=config['cuda'], dropout_prob=config['g_dropout_prob'])
-
-        self.nll_loss = nn.NLLLoss()
-        self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
-        self.generator = self.generator.to(self.device)
-        self.nll_loss = self.nll_loss.to(self.device)
-
-        self.gen_optimizer = optim.Adam(
-            params=self.generator.parameters(), lr=config["gen_lr"])
-
         spm.SentencePieceTrainer.train(
             "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1")
         self.tokenizer = spm.SentencePieceProcessor()
@@ -53,6 +41,20 @@ class LSTMLMTrainer:
         self.eval_iter = DataIterator(
             self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
 
+        # Set models, criteria, optimizers
+        self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['g_embed_dim'],
+                                 hidden_dim=config['g_hidden_dim'], num_layers=config['g_num_layers'],
+                                 use_cuda=config['cuda'], dropout_prob=config['g_dropout_prob'],
+                                 BOS_TOKEN=self.BOS_TOKEN, EOS_TOKEN=self.EOS_TOKEN)
+
+        self.nll_loss = nn.NLLLoss()
+        self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
+        self.generator = self.generator.to(self.device)
+        self.nll_loss = self.nll_loss.to(self.device)
+
+        self.gen_optimizer = optim.Adam(
+            params=self.generator.parameters(), lr=config["gen_lr"])
+
     def train(self):
         print('#####################################################')
         print('Start training generator with MLE...')
@@ -61,7 +63,9 @@ class LSTMLMTrainer:
         for i in range(0, self.config["epochs"]):
             train_loss = self.train_mle()
             val_loss = self.eval_nll(self.eval_iter)
+            print("generating...")
             self.generate_samples()
+            print("evaluating...")
             jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
                 self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
             print(
@@ -113,7 +117,7 @@ class LSTMLMTrainer:
         samples = []
         for _ in range(int(self.config["n_samples"] / self.config["batch_size"])):
             sample = self.generator.sample(
-                self.config["batch_size"], self.config["seq_len"]).cpu().data.numpy().tolist()
+                self.config["batch_size"], self.config["seq_len"]).cpu().tolist()
             samples.extend(sample)
         with open(self.generated_path, 'w', encoding="utf-8") as fout:
             lines_to_write = [
