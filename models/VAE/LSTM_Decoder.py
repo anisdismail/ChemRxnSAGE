@@ -11,12 +11,13 @@ import numpy as np
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
 
-    def __init__(self, args, model_init, emb_init, BOS_token):
+    def __init__(self, args, model_init, emb_init, BOS_token, EOS_token):
         super().__init__()
         self.ni = args["ni"]
         self.nh = args["dec_nh"]
         self.nz = args["nz"]
         self.bos_token = BOS_token
+        self.eos_token = EOS_token
         self.device = torch.device("cuda" if args["cuda"] else "cpu")
 
         # no padding when setting padding_idx to -1
@@ -105,47 +106,68 @@ class LSTMDecoder(nn.Module):
         Returns: List1
             List1: the decoded word sentence list
         """
-
         batch_size = z.size(0)
+
+        # Initialize the decoded_batch list to store outputs
         decoded_batch = [[] for _ in range(batch_size)]
 
-        # (batch_size, 1, nz)
+        # Precompute c_init and h_init
         c_init = self.trans_linear(z).unsqueeze(0)
         h_init = torch.tanh(c_init)
-
         decoder_hidden = (h_init, c_init)
-        decoder_input = torch.tensor(
-            [self.bos_token] * batch_size, dtype=torch.long, device=self.device).unsqueeze(1)
-        # end_symbol = torch.tensor([0] * batch_size, dtype=torch.long, device=self.device)
 
-        mask = torch.ones((batch_size), dtype=torch.uint8, device=self.device)
-        # TODO: investigate this number of maximum characters
+        # Initialize decoder input
+        decoder_input = torch.full(
+            (batch_size, 1), self.bos_token, dtype=torch.long, device=self.device)
+
+        # Precompute z for concatenation to avoid repeating this inside the loop
+        z_unsqueezed = z.unsqueeze(1)
+
+        # Initialize the length counter
         length_c = 1
-        while length_c <= 201:
 
-            # (batch_size, 1, ni) --> (batch_size, 1, ni+nz)
+        # Tensor to store the final output sequences
+        output_sequences = torch.zeros(
+            (batch_size, 201), dtype=torch.long, device=self.device)
+
+        # Tensor to track if the decoding should continue for each batch item
+        active_mask = torch.ones(
+            batch_size, dtype=torch.bool, device=self.device)
+        # TODO: number of sequences
+        while length_c <= 201 and active_mask.any():
+
+            # Embedding and concatenation
             word_embed = self.embed(decoder_input)
-            word_embed = torch.cat((word_embed, z.unsqueeze(1)), dim=-1)
+            word_embed = torch.cat((word_embed, z_unsqueezed), dim=-1)
 
+            # LSTM and linear layers
             output, decoder_hidden = self.lstm(word_embed, decoder_hidden)
+            decoder_output = self.pred_linear(output).squeeze(1)
 
-            # (batch_size, 1, vocab_size) --> (batch_size, vocab_size)
-            decoder_output = self.pred_linear(output)
-            output_logits = decoder_output.squeeze(1)
-
-            # (batch_size)
-            sample_prob = F.softmax(output_logits, dim=1)
+            # Sampling
+            sample_prob = F.softmax(decoder_output, dim=1)
             sample_index = torch.multinomial(
                 sample_prob, num_samples=1).squeeze(1)
 
+            # Store outputs
+            output_sequences[:, length_c - 1] = sample_index * active_mask
+
+            # Update the input for the next step
             decoder_input = sample_index.unsqueeze(1)
+
+            # Update active_mask to stop decoding if end token is reached
+            # Assuming eos_token is the end-of-sequence token
+            active_mask &= sample_index != self.eos_token
+
+            # Update length counter
             length_c += 1
 
-            for i in range(batch_size):
-             #       if mask[i].item():
-                decoded_batch[i].append(sample_index[i].item())
+        # Convert the output_sequences tensor into a list of lists
+        decoded_batch = output_sequences.tolist()
 
-            # mask = torch.mul((sample_index != end_symbol), mask)
+        decoded_batch = [
+            [token for token in sequence] for sequence in decoded_batch
+        ]
 
         return decoded_batch
 
