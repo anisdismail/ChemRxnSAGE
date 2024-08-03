@@ -161,22 +161,22 @@ class GaussianEncoderBase(nn.Module):
 class LSTMEncoder(GaussianEncoderBase):
     """Gaussian LSTM Encoder with constant-length batching"""
 
-    def __init__(self, args, vocab_size, model_init, emb_init):
+    def __init__(self, config, vocab_size, model_init, emb_init):
         super(LSTMEncoder, self).__init__()
-        self.ni = args["ni"]
-        self.nh = args["enc_nh"]
-        self.nz = args["nz"]
+        self.ni = config["ni"]
+        self.nh = config["enc_nh"]
+        self.nz = config["nz"]
 
-        self.embed = nn.Embedding(vocab_size,  args["ni"])
+        self.embed = nn.Embedding(vocab_size,  config["ni"])
 
-        self.lstm = nn.LSTM(input_size= args["ni"],
-                            hidden_size=args["enc_nh"],
+        self.lstm = nn.LSTM(input_size= config["ni"],
+                            hidden_size=config["enc_nh"],
                             num_layers=1,
                             batch_first=True,
                             dropout=0)
 
         # dimension transformation to z (mean and logvar)
-        self.linear = nn.Linear(args["enc_nh"], 2 * args["nz"], bias=False)
+        self.linear = nn.Linear(config["enc_nh"], 2 * config["nz"], bias=False)
 
         self.reset_parameters(model_init, emb_init)
 
@@ -204,7 +204,7 @@ class LSTMEncoder(GaussianEncoderBase):
             Tensor2: the logvar tensor, shape (batch, nz)
         """
 
-        # (batch_size, seq_len-1, args.ni)
+        # (batch_size, seq_len-1, config.ni)
         word_embed = self.embed(input)
 
         _, (last_state, last_cell) = self.lstm(word_embed)
@@ -227,9 +227,9 @@ class LSTMEncoder(GaussianEncoderBase):
 class VarLSTMEncoder(LSTMEncoder):
     """Gaussian LSTM Encoder with variable-length batching"""
 
-    def __init__(self, args, vocab_size, model_init, emb_init):
+    def __init__(self, config, vocab_size, model_init, emb_init):
         super(VarLSTMEncoder, self).__init__(
-            args, vocab_size, model_init, emb_init)
+            config, vocab_size, model_init, emb_init)
 
     def forward(self, input):
         """
@@ -243,7 +243,7 @@ class VarLSTMEncoder(LSTMEncoder):
         """
 
         input, sents_len = input
-        # (batch_size, seq_len, args.ni)
+        # (batch_size, seq_len, config.ni)
         word_embed = self.embed(input)
 
         packed_embed = pack_padded_sequence(

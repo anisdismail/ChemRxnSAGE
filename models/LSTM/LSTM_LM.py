@@ -4,11 +4,12 @@ import torch.nn as nn
 
 class LSTM_LM(nn.Module):
 
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers, use_cuda, dropout_prob):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers, use_cuda, dropout_prob, BOS_TOKEN, EOS_TOKEN):
         super().__init__()
-        self.bos_token = 1
+        self.BOS_TOKEN = BOS_TOKEN
+        self.EOS_TOKEN = EOS_TOKEN
         self.hidden_dim = hidden_dim
-        self.use_cuda = use_cuda
+        self.device = torch.device("cuda" if use_cuda else "cpu")
         self.num_layers = num_layers
         self.embed = nn.Embedding(vocab_size, embedding_dim)
         self.lstm_1 = nn.LSTM(embedding_dim, hidden_dim,
@@ -49,7 +50,7 @@ class LSTM_LM(nn.Module):
         Outputs: out, h, c
             - out: (batch_size, vocab_size), lstm output prediction
             - h: (1, batch_size, hidden_dim), lstm hidden state
-            - c: (1, batch_size, hidden_dim), lstm cell state 
+            - c: (1, batch_size, hidden_dim), lstm cell state
         """
         self.lstm_1.flatten_parameters()
         emb = self.embed(x)  # batch_size * 1 * emb_dim
@@ -63,8 +64,7 @@ class LSTM_LM(nn.Module):
     def init_hidden(self, batch_size):
         h = torch.zeros(self.num_layers, batch_size, self.hidden_dim)
         c = torch.zeros(self.num_layers, batch_size, self.hidden_dim)
-        if self.use_cuda:
-            h, c = h.cuda(), c.cuda()
+        h, c = h.to(self.device), c.to(self.device)
         return h, c
 
     def init_params(self):
@@ -78,7 +78,63 @@ class LSTM_LM(nn.Module):
         Outputs: out
             - out: (batch_size * seq_len)
         """
-        samples = []
+        # Initialize hidden states
+        h, c = self.init_hidden(batch_size if x is None else x.size(0))
+
+        # Prepare the input tensor
+        if x is None:
+            x = torch.full((batch_size, 1), self.BOS_TOKEN,
+                           dtype=torch.int64, device=self.device)
+            given_len = 0
+        else:
+            given_len = x.size(1)
+            x = x[:, -1:]  # Start sampling from the last provided token
+
+        # Vector to store the generated sequence
+        output_samples = torch.zeros(
+            batch_size, seq_len, dtype=torch.int64, device=self.device)
+
+        if given_len > 0:
+            output_samples[:, :given_len] = x.squeeze(1)
+
+         # Mask to keep track of sequences that have not yet generated an EOS token
+        active_mask = torch.ones(
+            batch_size, dtype=torch.bool, device=self.device)
+
+        for t in range(seq_len - given_len):
+            if not active_mask.any():
+                break  # Stop early if all sequences have generated the EOS token
+
+            out, h, c = self.step(x, h, c)
+
+            # Apply softmax to get probability distribution
+            prob = torch.softmax(out, dim=-1)
+
+            # Sample from the distribution
+            x = torch.multinomial(prob, 1)
+
+            # Store the sample in the output tensor
+            output_samples[:, given_len + t] = x.squeeze(1)
+
+            # Update active_mask to stop processing sequences that have reached EOS token
+            active_mask &= (x.squeeze(1) != self.EOS_TOKEN)
+
+            # If a sequence has hit EOS, prevent further sampling by setting x to EOS
+            x = x * active_mask.unsqueeze(1)
+
+        return output_samples
+
+
+# def sample(self, batch_size, seq_len, x=None):
+        """
+        Samples the network and returns a batch of samples of length seq_len.
+
+        Outputs: out
+            - out: (batch_size * seq_len)
+        """
+
+
+"""        samples = []
         if x is None:
             h, c = self.init_hidden(batch_size)
             x = torch.full((batch_size, 1), self.bos_token, dtype=torch.int64)
@@ -105,3 +161,4 @@ class LSTM_LM(nn.Module):
                 x = torch.multinomial(prob, 1)
         out = torch.cat(samples, dim=1)  # along the batch_size dimension
         return out
+        """
