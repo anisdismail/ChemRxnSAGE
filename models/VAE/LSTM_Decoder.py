@@ -16,6 +16,7 @@ class LSTMDecoder(nn.Module):
         self.ni = config["ni"]
         self.nh = config["dec_nh"]
         self.nz = config["nz"]
+        self.seq_len = config["seq_len"]
         self.bos_token = BOS_token
         self.eos_token = EOS_token
         self.device = torch.device("cuda" if config["cuda"] else "cpu")
@@ -28,7 +29,8 @@ class LSTMDecoder(nn.Module):
         self.dropout_out = nn.Dropout(config["dec_dropout_out"])
 
         # for initializing hidden state and cell
-        self.trans_linear = nn.Linear(config["nz"], config["dec_nh"], bias=False)
+        self.trans_linear = nn.Linear(
+            config["nz"], config["dec_nh"], bias=False)
 
         # concatenate z with input
         self.lstm = nn.LSTM(input_size=config["ni"] + config["nz"],
@@ -128,13 +130,12 @@ class LSTMDecoder(nn.Module):
 
         # Tensor to store the final output sequences
         output_sequences = torch.zeros(
-            (batch_size, 201), dtype=torch.long, device=self.device)
+            (batch_size, self.seq_len+1), dtype=torch.long, device=self.device)
 
         # Tensor to track if the decoding should continue for each batch item
         active_mask = torch.ones(
             batch_size, dtype=torch.bool, device=self.device)
-        # TODO: number of sequences
-        while length_c <= 201 and active_mask.any():
+        while length_c <= self.seq_len+1 and active_mask.any():
 
             # Embedding and concatenation
             word_embed = self.embed(decoder_input)
@@ -193,134 +194,6 @@ class LSTMDecoder(nn.Module):
 
         # (batch_size * n_sample, seq_len, vocab_size)
         output_logits = self.decode(src, z)
-
-        if n_sample == 1:
-            tgt = tgt.contiguous().view(-1)
-        else:
-            # (batch_size * n_sample * seq_len)
-            tgt = tgt.unsqueeze(1).expand(batch_size, n_sample, seq_len) \
-                .contiguous().view(-1)
-
-        # (batch_size * n_sample * seq_len)
-        loss = self.loss(output_logits.view(-1, output_logits.size(2)),
-                         tgt)
-
-        # (batch_size, n_sample)
-        return loss.view(batch_size, n_sample, -1).sum(-1)
-
-    def log_probability(self, x, z):
-        """Cross Entropy in the language case
-        Args:
-            x: (batch_size, seq_len)
-            z: (batch_size, n_sample, nz)
-        Returns:
-            log_p: (batch_size, n_sample).
-                log_p(x|z) across different x and z
-        """
-
-        return -self.reconstruct_error(x, z)
-
-# TODO: delete it if needed
-
-
-class VarLSTMDecoder(LSTMDecoder):
-    """LSTM decoder with variable-length batching"""
-
-    def __init__(self, config, vocab, model_init, emb_init):
-        super(VarLSTMDecoder, self).__init__(config, vocab, model_init, emb_init)
-
-        self.embed = nn.Embedding(
-            len(vocab), config.ni, padding_idx=vocab['<pad>'])
-        vocab_mask = torch.ones(len(vocab))
-        vocab_mask[vocab['<pad>']] = 0
-        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
-
-        self.reset_parameters(model_init, emb_init)
-
-    def decode(self, input, z):
-        """
-        Args:
-            input: tuple which contains x and sents_len
-                    x: (batch_size, seq_len)
-                    sents_len: long tensor of sentence lengths
-            z: (batch_size, n_sample, nz)
-        """
-
-        input, sents_len = input
-
-        # not predicting start symbol
-        sents_len = sents_len - 1
-
-        batch_size, n_sample, _ = z.size()
-        seq_len = input.size(1)
-
-        # (batch_size, seq_len, ni)
-        word_embed = self.embed(input)
-        word_embed = self.dropout_in(word_embed)
-
-        if n_sample == 1:
-            z_ = z.expand(batch_size, seq_len, self.nz)
-
-        else:
-            word_embed = word_embed.unsqueeze(1).expand(batch_size, n_sample, seq_len, self.ni) \
-                                   .contiguous()
-
-            # (batch_size * n_sample, seq_len, ni)
-            word_embed = word_embed.view(
-                batch_size * n_sample, seq_len, self.ni)
-
-            z_ = z.unsqueeze(2).expand(batch_size, n_sample,
-                                       seq_len, self.nz).contiguous()
-            z_ = z_.view(batch_size * n_sample, seq_len, self.nz)
-
-        # (batch_size * n_sample, seq_len, ni + nz)
-        word_embed = torch.cat((word_embed, z_), -1)
-
-        sents_len = sents_len.unsqueeze(1).expand(
-            batch_size, n_sample).contiguous().view(-1)
-        packed_embed = pack_padded_sequence(
-            word_embed, sents_len.tolist(), batch_first=True)
-
-        z = z.view(batch_size * n_sample, self.nz)
-        # h_init = self.trans_linear(z).unsqueeze(0)
-        # c_init = h_init.new_zeros(h_init.size())
-        c_init = self.trans_linear(z).unsqueeze(0)
-        h_init = torch.tanh(c_init)
-        output, _ = self.lstm(packed_embed, (h_init, c_init))
-        output, _ = pad_packed_sequence(output, batch_first=True)
-
-        output = self.dropout_out(output)
-
-        # (batch_size * n_sample, seq_len, vocab_size)
-        output_logits = self.pred_linear(output)
-
-        return output_logits
-
-    def reconstruct_error_vae(self, x, z):
-        """Cross Entropy in the language case
-        Args:
-            x: tuple which contains x_ and sents_len
-                    x_: (batch_size, seq_len)
-                    sents_len: long tensor of sentence lengths
-            z: (batch_size, n_sample, nz)
-        Returns:
-            loss: (batch_size, n_sample). Loss
-            across different sentence and z
-        """
-
-        x, sents_len = x
-
-        # remove end symbol
-        src = x[:, :-1]
-
-        # remove start symbol
-        tgt = x[:, 1:]
-
-        batch_size, seq_len = src.size()
-        n_sample = z.size(1)
-
-        # (batch_size * n_sample, seq_len, vocab_size)
-        output_logits = self.decode((src, sents_len), z)
 
         if n_sample == 1:
             tgt = tgt.contiguous().view(-1)
