@@ -103,44 +103,12 @@ class VAE(nn.Module):
         Returns: Tensor
             Tensor: samples from prior with shape (nsamples, nz)
         """
-        """     
-        print("sampling....")
         z = self.prior.sample((nsamples,))
         with open(fname, 'w', encoding="utf-8") as fout:
-            print("decoding...")
             decoded_batch = self.decode(z, strategy)
-            print("preprocessing")
             lines_to_write = [
                 ' '.join(map(str, sample)) + '\n' for sample in decoded_batch]
-            print("writing")
             fout.writelines(lines_to_write)
-        """
-        print("sampling....")
-        start_time = time.time()
-        z = self.prior.sample((nsamples,))
-        sampling_time = time.time() - start_time
-        print(f"Sampling completed in {sampling_time:.2f} seconds.")
-
-        with open(fname, 'w', encoding="utf-8") as fout:
-            print("decoding...")
-            start_time = time.time()
-            decoded_batch = self.decode(z, strategy)
-            decoding_time = time.time() - start_time
-            print(f"Decoding completed in {decoding_time:.2f} seconds.")
-
-            print("preprocessing")
-            start_time = time.time()
-            lines_to_write = [
-                ' '.join(map(str, sample)) + '\n' for sample in decoded_batch]
-            preprocessing_time = time.time() - start_time
-            print(
-                f"Preprocessing completed in {preprocessing_time:.2f} seconds.")
-
-            print("writing")
-            start_time = time.time()
-            fout.writelines(lines_to_write)
-            writing_time = time.time() - start_time
-            print(f"Writing completed in {writing_time:.2f} seconds.")
 
     def sample_from_inference(self, x, nsamples=1):
         """perform sampling from inference net
