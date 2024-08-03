@@ -55,3 +55,14 @@ class DataIterator:
         lis = [[int(float(s)) for s in list(line.strip().split())]
                for line in lines]
         return lis
+
+    def sample(self):
+        # Select random indices for the batch
+        index = random.sample(self.indices, self.batch_size)
+        
+        # Fetch the data and targets based on the randomly selected indices
+        data = torch.tensor([self.data_lis[i] for i in index])
+        target = torch.cat([data[:, 1:], torch.full(
+            (len(index), 1), self.pad_token, dtype=torch.int64)], dim=1)
+
+        return data, target
