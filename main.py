@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description="ChemRxnAIGen")
 parser.add_argument("--config", default=None, help='Configuration file path')
 parser.add_argument('--save_dir', type=str,
                     help="Save directory")
-parser.add_argument("--data_dir", type=str,
+parser.add_argument("--data_dir", type=str, default="Liu_Kheyer_Retrosynthesis_Data",
                     help="Path to the data directory containing the dataset")
 parser.add_argument("--train_path", type=str, default="/train/train_targets_ids_200.data",
                     help="Path to the data directory containing the train dataset")
@@ -90,25 +90,31 @@ else:
     parser.print_help()
     sys.exit(1)
 
-config.cuda = not config.no_cuda and torch.cuda.is_available()
-torch.manual_seed(config.seed)
-np.random.seed(config.seed)
-random.seed(config.seed)
+config["cuda"] = not config["no_cuda"] and torch.cuda.is_available()
+torch.manual_seed(config["seed"])
+np.random.seed(config["seed"])
+random.seed(config["seed"])
 
-if config.cuda:
-    torch.cuda.manual_seed(config.seed)
+if config["cuda"]:
+    print("Using Cuda")
+    torch.cuda.manual_seed(config["seed"])
     torch.backends.cudnn.deterministic = True
 
+print(config.keys())
 if config["mode"] == "train":
     if config["model"] == "LSTM":
+        print("training LSTM")
         trainer = LSTMLMTrainer(config=config)
     elif config["model"] == "VAE":
+        print("training VAE")
         trainer = VAETrainer(config=config)
     trainer.train()
 
 elif config["mode"] == "generate":
     if config["model"] == "LSTM":
+        print("generating with LSTM")
         generator = LSTMLMGenerator(config=config)
     elif config["model"] == "VAE":
+        print("generating with VAE")
         generator = VAEGenerator(config=config)
     generator.generate_samples()

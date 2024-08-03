@@ -11,35 +11,37 @@ import numpy as np
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
 
-    def __init__(self, args, vocab, model_init, emb_init):
+    def __init__(self, args, model_init, emb_init, BOS_token):
         super().__init__()
-        self.ni = args.ni
-        self.nh = args.dec_nh
-        self.nz = args.nz
-        self.vocab = vocab
-        self.device = args.device
+        self.ni = args["ni"]
+        self.nh = args["dec_nh"]
+        self.nz = args["nz"]
+        self.bos_token = BOS_token
+        self.device = torch.device("cuda" if args["cuda"] else "cpu")
 
         # no padding when setting padding_idx to -1
-        self.embed = nn.Embedding(len(vocab), args.ni, padding_idx=-1)
+        self.embed = nn.Embedding(
+            args['vocab_size'], args["ni"], padding_idx=-1)
 
-        self.dropout_in = nn.Dropout(args.dec_dropout_in)
-        self.dropout_out = nn.Dropout(args.dec_dropout_out)
+        self.dropout_in = nn.Dropout(args["dec_dropout_in"])
+        self.dropout_out = nn.Dropout(args["dec_dropout_out"])
 
         # for initializing hidden state and cell
-        self.trans_linear = nn.Linear(args.nz, args.dec_nh, bias=False)
+        self.trans_linear = nn.Linear(args["nz"], args["dec_nh"], bias=False)
 
         # concatenate z with input
-        self.lstm = nn.LSTM(input_size=args.ni + args.nz,
-                            hidden_size=args.dec_nh,
+        self.lstm = nn.LSTM(input_size=args["ni"] + args["nz"],
+                            hidden_size=args["dec_nh"],
                             num_layers=1,
                             batch_first=True)
 
         # prediction layer
-        self.pred_linear = nn.Linear(args.dec_nh, len(vocab), bias=False)
+        self.pred_linear = nn.Linear(
+            args["dec_nh"], args['vocab_size'], bias=False)
 
-        vocab_mask = torch.ones(len(vocab))
-        # vocab_mask[vocab['<pad>']] = 0
-        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduce=False)
+        vocab_mask = torch.ones(args['vocab_size'])
+        # vocab_mask[vocab['[PAD]']] = 0
+        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
 
         self.reset_parameters(model_init, emb_init)
 
@@ -64,7 +66,6 @@ class LSTMDecoder(nn.Module):
         # (batch_size, seq_len, ni)
         word_embed = self.embed(input)
         word_embed = self.dropout_in(word_embed)
-
         if n_sample == 1:
             z_ = z.expand(batch_size, seq_len, self.nz)
 
@@ -114,7 +115,7 @@ class LSTMDecoder(nn.Module):
 
         decoder_hidden = (h_init, c_init)
         decoder_input = torch.tensor(
-            [self.vocab["<s>"]] * batch_size, dtype=torch.long, device=self.device).unsqueeze(1)
+            [self.bos_token] * batch_size, dtype=torch.long, device=self.device).unsqueeze(1)
         # end_symbol = torch.tensor([0] * batch_size, dtype=torch.long, device=self.device)
 
         mask = torch.ones((batch_size), dtype=torch.uint8, device=self.device)
@@ -148,7 +149,7 @@ class LSTMDecoder(nn.Module):
 
         return decoded_batch
 
-    def reconstruct_error(self, src, z):
+    def reconstruct_error(self, x, z):
         """Cross Entropy in the language case
         Args:
             x: (batch_size, seq_len)
@@ -157,6 +158,13 @@ class LSTMDecoder(nn.Module):
             loss: (batch_size, n_sample). Loss
             across different sentence and z
         """
+
+        # TODO: understand what is this doing
+        # remove end symbol
+        src = x[:, :-1]
+
+        # remove start symbol
+        tgt = x[:, 1:]
 
         batch_size, seq_len = src.size()
         n_sample = z.size(1)
@@ -190,6 +198,8 @@ class LSTMDecoder(nn.Module):
 
         return -self.reconstruct_error(x, z)
 
+# TODO: delete it if needed
+
 
 class VarLSTMDecoder(LSTMDecoder):
     """LSTM decoder with variable-length batching"""
@@ -201,7 +211,7 @@ class VarLSTMDecoder(LSTMDecoder):
             len(vocab), args.ni, padding_idx=vocab['<pad>'])
         vocab_mask = torch.ones(len(vocab))
         vocab_mask[vocab['<pad>']] = 0
-        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduce=False)
+        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
 
         self.reset_parameters(model_init, emb_init)
 

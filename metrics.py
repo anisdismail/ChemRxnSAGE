@@ -4,9 +4,14 @@ import numpy as np
 
 from rdkit.Chem import rdChemReactions
 from rdkit import Chem
+from rdkit import RDLogger
+
 from scipy.spatial.distance import cdist, jensenshannon
 
 from utils import get_atoms, rxn_to_chain_ids, rxn_to_ring_ids, get_PO_bonds
+
+lg = RDLogger.logger()
+lg.setLevel(RDLogger.CRITICAL)
 
 
 def similarity(fps, centroids, metric):
@@ -34,8 +39,8 @@ def filter_0(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            if not Chem.MolFromSmarts(mol):
-                print(mol)
+            # if not Chem.MolFromSmarts(mol):
+            # print(mol)
             mol = Chem.MolFromSmarts(mol)
             atoms = get_atoms(mol)
             all_react_systems += atoms
@@ -239,7 +244,8 @@ def JSD_with_train(rxn_pred):
         train_dist_arr = [train_data_dist[i] for i in range(1, 11)]
         rxn_pred = [10 if x == 0 else x for x in rxn_pred]
 
-        rxn_pred_dist = dict(pd.Series(rxn_pred).value_counts()/len(rxn_pred))
+        rxn_pred_dist = pd.Series(rxn_pred).value_counts(
+            normalize=True).to_dict()
         if len(rxn_pred_dist) < 10:
             for i in range(1, 11):
                 if i not in rxn_pred_dist.keys():
