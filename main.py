@@ -99,6 +99,7 @@ if config["cuda"]:
     print("Using Cuda")
     torch.cuda.manual_seed(config["seed"])
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 print(config.keys())
 if config["mode"] == "train":

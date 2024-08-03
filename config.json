@@ -6,7 +6,7 @@
         "train_path": "train/train_targets_ids_200.data",
         "val_path": "validation/validation_targets_ids_200.data",
         "gene_path": "train/test/gene.data",
-        "model": "VAE",
+        "model": "LSTM",
         "n_samples": 39579,
         "mode": "train",
         "load_path": "",

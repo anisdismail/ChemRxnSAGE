@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
 
 from models.LSTM.LSTM_LM import LSTM_LM
 from models.VAE.VAE import VAE
@@ -31,14 +30,14 @@ class LSTMLMTrainer:
             self.centroids_strings = np.loadtxt(f)
 
         # Set models, criteria, optimizers
-        self.generator = LSTM_LM(config['vocab_size'], config['g_embed_dim'],
-                                 config['g_hidden_dim'], config['g_num_layers'], config['cuda'], config['g_dropout_prob'])
+        self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['g_embed_dim'],
+                                 hidden_dim=config['g_hidden_dim'], num_layers=config['g_num_layers'], use_cuda=config['cuda'], dropout_prob=config['g_dropout_prob'])
 
         self.nll_loss = nn.NLLLoss()
-        if config["cuda"]:
-            self.generator = self.generator.cuda()
-            self.nll_loss = self.nll_loss.cuda()
-            cudnn.benchmark = True
+        self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
+        self.generator = self.generator.to(self.device)
+        self.nll_loss = self.nll_loss.to(self.device)
+
         self.gen_optimizer = optim.Adam(
             params=self.generator.parameters(), lr=config["gen_lr"])
 
@@ -46,26 +45,27 @@ class LSTMLMTrainer:
             "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1")
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load('m.model')
+        self.PAD_TOKEN = self.tokenizer.encode_as_ids("[PAD]")[1]
+        self.BOS_TOKEN = self.tokenizer.encode_as_ids("[BOS]")[1]
+        self.EOS_TOKEN = self.tokenizer.encode_as_ids("[EOS]")[1]
         self.train_iter = DataIterator(
-            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.eval_iter = DataIterator(
-            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
 
     def train(self):
         print('#####################################################')
-        print('Start pre-training generator with MLE...')
+        print('Start training generator with MLE...')
         print('#####################################################\n')
 
         for i in range(0, self.config["epochs"]):
-            print(f"Step {i}")
             train_loss = self.train_mle()
             val_loss = self.eval_nll(self.eval_iter)
             self.generate_samples()
             jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
                 self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
-
-            # Print the values directly
-            print(f"Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}")
+            print(
+                f"Epoch {i}, Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}")
             print(
                 f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
 
@@ -78,8 +78,7 @@ class LSTMLMTrainer:
         self.generator.train()
         total_loss = 0.
         for data, target in self.train_iter:
-            if self.config["cuda"]:
-                data, target = data.cuda(), target.cuda()
+            data, target = data.to(self.device), target.to(self.device)
             target = target.contiguous().view(-1)
             output = self.generator(data)
             loss = self.nll_loss(output, target)
@@ -99,8 +98,7 @@ class LSTMLMTrainer:
         self.generator.eval()
         with torch.no_grad():
             for data, target in data_iter:
-                if self.config["cuda"]:
-                    data, target = data.cuda(), target.cuda()
+                data, target = data.to(self.device), target.to(self.device)
                 target = target.contiguous().view(-1)
                 pred = self.generator(data)
                 loss = self.nll_loss(pred, target)
@@ -142,10 +140,13 @@ class VAETrainer:
             "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1")
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load('m.model')
+        self.PAD_TOKEN = self.tokenizer.encode_as_ids("[PAD]")[1]
+        self.BOS_TOKEN = self.tokenizer.encode_as_ids("[BOS]")[1]
+        self.EOS_TOKEN = self.tokenizer.encode_as_ids("[EOS]")[1]
         self.train_iter = DataIterator(
-            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.eval_iter = DataIterator(
-            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.tokenizer.encode_as_ids("[PAD]")[1])
+            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.config = config
         self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
         model_init = uniform_initializer(0.01)
@@ -154,7 +155,7 @@ class VAETrainer:
         self.encoder = LSTMEncoder(
             self.config, config["vocab_size"], model_init, emb_init)
         self.decoder = LSTMDecoder(
-            self.config, model_init, emb_init, self.tokenizer.encode_as_ids("[BOS]")[1], self.tokenizer.encode_as_ids("[EOS]")[1])
+            self.config, model_init, emb_init, BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
         self.vae = VAE(self.encoder, self.decoder, self.config).to(self.device)
 
         self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(),
@@ -169,8 +170,7 @@ class VAETrainer:
             report_num_words, report_num_sents = 0, 0
 
             for data, target in data_iter:
-                if self.config["cuda"]:
-                    data, target = data.cuda(), target.cuda()
+                data, target = data.to(self.device), target.to(self.device)
                 batch_size, sent_len = data.size()
                 report_num_sents += batch_size
                 report_num_words += (sent_len - 1) * batch_size
@@ -213,8 +213,7 @@ class VAETrainer:
             report_kl_loss = report_rec_loss = 0
             report_num_words = report_num_sents = 0
             for data, target in self.train_iter:
-                if self.config["cuda"]:
-                    data, target = data.cuda(), target.cuda()
+                data, target = data.to(self.device), target.to(self.device)
                 batch_size, sent_len = data.size()
                 report_num_sents += batch_size
                 report_num_words += (sent_len - 1) * batch_size
