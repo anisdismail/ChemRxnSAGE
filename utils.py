@@ -4,11 +4,14 @@ import torch
 import pandas as pd
 import numpy as np
 from rdkit import Chem
+from rdkit import RDLogger
+lg = RDLogger.logger()
+lg.setLevel(RDLogger.CRITICAL)
 
 
 def load_rxn_classifier(config):
     rxn_classifier = torch.load(os.path.join(
-        config["project_dir"], "final_nn_classifier.pth"))
+        config["data_dir"], "final_nn_classifier.pth"))
     rxn_classifier.eval()
     return rxn_classifier
 
@@ -31,7 +34,7 @@ def predict_rxn_type(model, gen_fingerprints, batch_size=64):
         # Perform predictions for the batch
         outputs = model(batch_fingerprints)
         y_pred_softmax = torch.log_softmax(outputs, dim=0)
-        y_pred_tags = torch.argmax(y_pred_softmax, dim=0)
+        y_pred_tags = torch.argmax(y_pred_softmax, dim=1)
 
         rxn_pred.extend(y_pred_tags.cpu().numpy().tolist())
 

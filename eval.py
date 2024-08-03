@@ -24,7 +24,6 @@ def validity_statistics(df):
 def filters_pipeline(df):
     # run the molecular validation first
     df["isValid"] = df["decoded_smiles"].apply(is_valid_rxn)
-    print(df["isValid"].sum()/df.shape[0])
     # run the heuristics filters
     df["Filter_0"] = df.apply(lambda x: filter_0(
         x["decoded_smiles"]) if x["isValid"] else False, axis=1)
@@ -40,7 +39,7 @@ def filters_pipeline(df):
 def process_results(data, tokenizer, config, use_filters=True):
     df = pd.DataFrame()
     # decode ids into smiles
-    df["decoded_smiles"] = np.apply_along_axis(decode_ids_np, 1, data)
+    df["decoded_smiles"] = np.apply_along_axis(decode_ids_np, 1, data, tokenizer)
     # run the decoded smiles into the filters pipeline
     df = filters_pipeline(df)
     # transform the data into fingerprints

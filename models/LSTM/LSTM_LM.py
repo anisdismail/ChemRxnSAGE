@@ -57,7 +57,7 @@ class LSTM_LM(nn.Module):
         out, (h, c) = self.lstm_1(emb, (h, c))
         # batch_size * vocab_size
         out = self.log_softmax(
-            self.fc(out.contiguous().view(-1, self.hidden_dim)))
+            self.dense(out.contiguous().view(-1, self.hidden_dim)))
         return out, h, c
 
     def init_hidden(self, batch_size):

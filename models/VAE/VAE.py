@@ -16,10 +16,10 @@ class VAE(nn.Module):
 
         self.args = args
 
-        self.nz = args.nz
-
-        loc = torch.zeros(self.nz, device=args.device)
-        scale = torch.ones(self.nz, device=args.device)
+        self.nz = args["nz"]
+        self.device = 'cuda' if args["cuda"] else 'cpu'
+        loc = torch.zeros(self.nz, device=self.device)
+        scale = torch.ones(self.nz, device=self.device)
 
         self.prior = torch.distributions.normal.Normal(loc, scale)
 
@@ -57,7 +57,7 @@ class VAE(nn.Module):
         else:
             raise ValueError("the decoding strategy is not supported")
 
-    def reconstruct(self, x, decoding_strategy="greedy", K=5):
+    def reconstruct(self, x, decoding_strategy="sample", K=5):
         """reconstruct from input x
 
         Args:
@@ -72,7 +72,7 @@ class VAE(nn.Module):
 
         return self.decode(z, decoding_strategy, K)
 
-    def loss(self, src, target, kl_weight, nsamples=1):
+    def loss(self, src, kl_weight, nsamples=1):
         """
         Args:
             x: if the data is constant-length, x is the data tensor with
@@ -98,13 +98,22 @@ class VAE(nn.Module):
 
         return KL
 
-    def sample_from_prior(self, nsamples):
+    def sample_from_prior(self, nsamples, strategy, fname):
         """sampling from prior distribution
 
         Returns: Tensor
             Tensor: samples from prior with shape (nsamples, nz)
         """
-        return self.prior.sample((nsamples,))
+        print("sampling....")
+        z = self.prior.sample((nsamples,))
+        with open(fname, 'w', encoding="utf-8") as fout:
+            print("decoding...")
+            decoded_batch = self.decode(z, strategy)
+            print("preprocessing")
+            lines_to_write = [
+                ' '.join(map(str, sample)) + '\n' for sample in decoded_batch]
+            print("writing")
+            fout.writelines(lines_to_write)
 
     def sample_from_inference(self, x, nsamples=1):
         """perform sampling from inference net

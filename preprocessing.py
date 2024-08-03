@@ -1,8 +1,10 @@
+from utils import convert_fingerprint
 import sys
 import numpy as np
 from rdkit import Chem
-
-from utils import convert_fingerprint
+from rdkit import RDLogger
+lg = RDLogger.logger()
+lg.setLevel(RDLogger.CRITICAL)
 
 
 def create_fingerprints(df, tokenizer, use_filters, config):
@@ -21,7 +23,7 @@ def create_fingerprints(df, tokenizer, use_filters, config):
                                1:] if x["validated"] else "0", axis=1).fillna("0")
 
     # calculate how much to pad for each case
-    df["input_counts"] = config["max_seq_len"] - \
+    df["input_counts"] = config["seq_len"] - \
         df["input_ids"].str.len().astype(int)
 
     # pad with the pad_token
