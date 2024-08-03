@@ -4,6 +4,23 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import time
 import numpy as np
+import math
+
+
+def log_sum_exp(value, dim=None, keepdim=False):
+    """Numerically stable implementation of the operation
+    value.exp().sum(dim, keepdim).log()
+    """
+    if dim is not None:
+        m, _ = torch.max(value, dim=dim, keepdim=True)
+        value0 = value - m
+        if keepdim is False:
+            m = m.squeeze(dim)
+        return m + torch.log(torch.sum(torch.exp(value0), dim=dim, keepdim=keepdim))
+    else:
+        m = torch.max(value)
+        sum_exp = torch.sum(torch.exp(value - m))
+        return m + torch.log(sum_exp)
 
 
 class VAE(nn.Module):
@@ -119,3 +136,85 @@ class VAE(nn.Module):
         z, _ = self.encoder.sample(x, nsamples)
 
         return z
+
+    def calc_au(self, data_iter, delta=0.01):
+        """compute the number of active units
+        """
+        cnt = 0
+        for batch_data, _ in data_iter:
+            batch_data = batch_data.to(self.device)
+            mean, _ = self.encode_stats(batch_data)
+            if cnt == 0:
+                means_sum = mean.sum(dim=0, keepdim=True)
+            else:
+                means_sum = means_sum + mean.sum(dim=0, keepdim=True)
+            cnt += mean.size(0)
+
+        # (1, nz)
+        mean_mean = means_sum / cnt
+        data_iter.reset()
+
+        cnt = 0
+        for batch_data, _ in data_iter:
+            batch_data = batch_data.to(self.device)
+            if cnt == 0:
+                var_sum = ((mean - mean_mean) ** 2).sum(dim=0)
+            else:
+                var_sum = var_sum + ((mean - mean_mean) ** 2).sum(dim=0)
+            cnt += mean.size(0)
+
+        data_iter.reset()
+
+        # (nz)
+        au_var = var_sum / (cnt - 1)
+        return (au_var >= delta).sum().item(), au_var
+
+    def calc_mi(self, data_loader):
+        """Approximate the mutual information between x and z
+        I(x, z) = E_xE_{q(z|x)}log(q(z|x)) - E_xE_{q(z|x)}log(q(z))
+        Returns: Float
+        """
+        neg_entropy_sum = 0.0
+        log_qz_sum = 0.0
+        total_samples = 0
+
+        for data, _ in data_loader:
+            x = data.to(self.device)
+
+            # [x_batch, nz]
+            mu, logvar = self.encode_stats(x)
+            x_batch, nz = mu.size()
+
+            # E_{q(z|x)}log(q(z|x)) = -0.5*nz*log(2*\pi) - 0.5*(1+logvar).sum(-1)
+            neg_entropy = (-0.5 * nz * math.log(2 * math.pi) -
+                           0.5 * (1 + logvar).sum(-1)).mean()
+
+            # [z_batch, 1, nz]
+            z_samples = self.encoder.reparameterize(mu, logvar, 1)
+
+            # [1, x_batch, nz]
+            mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
+            var = logvar.exp()
+
+            # (z_batch, x_batch, nz)
+            dev = z_samples - mu
+
+            # (z_batch, x_batch)
+            log_density = -0.5 * ((dev ** 2) / var).sum(dim=-1) - \
+                0.5 * (nz * math.log(2 * math.pi) + logvar.sum(-1))
+
+            # log q(z): aggregate posterior
+            # [z_batch]
+            log_qz = log_sum_exp(log_density, dim=1) - math.log(x_batch)
+
+            # Accumulate the neg_entropy and log_qz for the batch
+            neg_entropy_sum += neg_entropy.item() * x_batch
+            log_qz_sum += log_qz.sum().item()
+            total_samples += x_batch
+
+        # Compute the final mutual information estimate
+        neg_entropy_mean = neg_entropy_sum / total_samples
+        log_qz_mean = log_qz_sum / total_samples
+
+        data_loader.reset()
+        return (neg_entropy_mean - log_qz_mean)
