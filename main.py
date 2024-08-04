@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import torch
 import random
+import logging
 
 from train import LSTMLMTrainer, VAETrainer
 from generate import LSTMLMGenerator, VAEGenerator
@@ -24,6 +25,8 @@ parser.add_argument("--gene_path", type=str, default="/train/v2.4/gene.data",
                     help="Path to the data directory containing the generated dataset")
 parser.add_argument("--load_path", type=str, default="",
                     help="Path to the trained models")
+parser.add_argument("--log_path", type=str, default="",
+                    help="Path to the log file")
 parser.add_argument("--model", type=str, default="LSTM", choices=["LSTM", "VAE"],
                     help="model to train ")
 parser.add_argument('--n_gen_samples', type=int, default=39579, metavar='N',
@@ -92,13 +95,22 @@ else:
     parser.print_help()
     sys.exit(1)
 
+
+# set up logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[logging.FileHandler(config["log_path"]),
+                              logging.StreamHandler()])
+
 config["cuda"] = not config["no_cuda"] and torch.cuda.is_available()
+
+# fix seeds
 torch.manual_seed(config["seed"])
 np.random.seed(config["seed"])
 random.seed(config["seed"])
 
 if config["cuda"]:
-    print("Using Cuda")
+    logging.info("Using Cuda")
     torch.cuda.manual_seed(config["seed"])
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True

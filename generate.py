@@ -49,11 +49,13 @@ class VAEGenerator:
         self.BOS_TOKEN = self.tokenizer.encode_as_ids("[BOS]")[1]
         self.EOS_TOKEN = self.tokenizer.encode_as_ids("[EOS]")[1]
         self.encoder = LSTMEncoder(
-            self.config, config["vocab_size"], model_init, emb_init)
+            config=self.config, vocab_size=config["vocab_size"],
+            model_init=model_init, emb_init=emb_init)
         self.decoder = LSTMDecoder(
-            self.config, model_init, emb_init,
+            config=self.config, model_init=model_init, emb_init=emb_init,
             BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
-        self.vae = VAE(self.encoder, self.decoder, self.config).to(self.device)
+        self.vae = VAE(encoder=self.encoder, decoder=self.decoder,
+                       config=self.config).to(self.device)
         self.vae.load_state_dict(self.config["load_path"])
 
     def generate_samples(self):
