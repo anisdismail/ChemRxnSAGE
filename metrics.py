@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 import numpy as np
+import logging
 
 from rdkit.Chem import rdChemReactions
 from rdkit import Chem
@@ -34,7 +35,7 @@ def filter_0(rxn):
     # Separate reactants and products
     reactants = [mol for mol in mols[:-1] if mol]
     products = [mols[-1]]
- 
+
     # Initialize lists to store atom types from reactants and products
     reactant_atoms = []
     product_atoms = []
@@ -77,7 +78,7 @@ Filter 2: Illogical Ring Operations
 
 
 def filter_2(rxn, thresh=0):
-    # print(rxn)
+    # logging.info(rxn)
     all_react_ids, all_react_systems, prod_ids, prod_systems, react, react_dict = rxn_to_ring_ids(
         rxn)
     deleted = {}
@@ -245,7 +246,7 @@ def is_valid_rxn(rxn):
     try:
         rdChemReactions.ReactionFromSmarts(rxn, useSmiles=False)
     except Exception as e:
-        print("Error in reaction format:", e)
+        logging.info("Error in reaction format:", e)
         return False
 
     return True
