@@ -6,6 +6,7 @@
         "val_path": "validation/validation_targets_ids_200.data",
         "gene_path": "train/test/gene.data",
         "load_path": "/model_weights/synthesizer/test/vae_epoch200_loss130.pt",
+        "log_path": "train/test/train.log",
         "seed": 42,
         "model": "VAE",
         "n_gen_gen_samples": 39579,

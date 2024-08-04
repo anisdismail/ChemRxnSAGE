@@ -37,9 +37,9 @@ class LSTMLMTrainer:
         self.BOS_TOKEN = self.tokenizer.encode_as_ids("[BOS]")[1]
         self.EOS_TOKEN = self.tokenizer.encode_as_ids("[EOS]")[1]
         self.train_iter = DataIterator(
-            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
+            data_file=self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.eval_iter = DataIterator(
-            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
+            data_file=self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
 
         # Set models, criteria, optimizers
         self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['LSTM_embed_dim'],
@@ -118,8 +118,8 @@ class LSTMLMTrainer:
         self.generator.eval()
         samples = []
         for _ in range(int(self.config["n_gen_samples"] / self.config["batch_size"])):
-            sample = self.generator.sample(
-                self.config["batch_size"], self.config["seq_len"]).cpu().tolist()
+            sample = self.generator.sample(batch_size=self.config["batch_size"],
+                                           seq_len=self.config["seq_len"]).cpu().tolist()
             samples.extend(sample)
         with open(self.generated_path, 'w', encoding="utf-8") as fout:
             lines_to_write = [
@@ -150,20 +150,21 @@ class VAETrainer:
         self.BOS_TOKEN = self.tokenizer.encode_as_ids("[BOS]")[1]
         self.EOS_TOKEN = self.tokenizer.encode_as_ids("[EOS]")[1]
         self.train_iter = DataIterator(
-            self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
+            data_file=self.train_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.eval_iter = DataIterator(
-            self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
-        self.config = config
+            data_file=self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
         self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
         model_init = uniform_initializer(0.01)
         emb_init = uniform_initializer(0.1)
 
         self.encoder = LSTMEncoder(
-            self.config, config["vocab_size"], model_init, emb_init)
+            config=self.config, vocab_size=config["vocab_size"],
+            model_init=model_init, emb_init=emb_init)
         self.decoder = LSTMDecoder(
-            self.config, model_init, emb_init,
+            config=self.config, model_init=model_init, emb_init=emb_init,
             BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
-        self.vae = VAE(self.encoder, self.decoder, self.config).to(self.device)
+        self.vae = VAE(encoder=self.encoder, decoder=self.decoder,
+                       config=self.config).to(self.device)
 
         self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(),
                                        lr=1.0, momentum=self.config["momentum"])
@@ -187,7 +188,7 @@ class VAETrainer:
                 report_num_sents += batch_size
 
                 loss, loss_rc, loss_kl = self.vae.loss(
-                    data, 1.0, nsamples=self.config["VAE_n_training_samples"])
+                    src=data, kl_weight=1.0, nsamples=self.config["VAE_n_training_samples"])
 
                 assert (not loss_rc.requires_grad)
 
@@ -234,9 +235,11 @@ class VAETrainer:
                     self.perform_aggressive_training(data)
 
                 # Normal training step
-                loss, loss_rc, loss_kl = self.compute_loss(data, kl_weight)
+                loss, loss_rc, loss_kl = self.compute_loss(
+                    data=data, kl_weight=kl_weight)
                 self.optimize_loss(loss)
-                self.update_report_metrics(report_metrics, loss_rc, loss_kl)
+                self.update_report_metrics(
+                    report_metrics=report_metrics, loss_rc=loss_rc, loss_kl=loss_kl)
 
                 # Monitor mutual information (MI) during aggressive training
                 if self.config["aggressive"]:
@@ -254,7 +257,8 @@ class VAETrainer:
 
             # Check for improvement and adjust learning rate if necessary
             self.check_improvement(
-                eval_metrics, opt_dict, best_metrics, decay_cnt, epoch)
+                eval_metrics=eval_metrics, opt_dict=opt_dict,
+                best_metrics=best_metrics, decay_cnt=decay_cnt, epoch=epoch)
 
             # Generate samples and evaluate them
             self.generate_samples()
@@ -309,7 +313,7 @@ class VAETrainer:
 
     def compute_loss(self, data, kl_weight):
         loss, loss_rc, loss_kl = self.vae.loss(
-            data, kl_weight, nsamples=self.config["VAE_n_training_samples"])
+            src=data, kl_weight=kl_weight, nsamples=self.config["VAE_n_training_samples"])
         loss = loss.mean(dim=-1)
         return loss, loss_rc, loss_kl
 
@@ -332,7 +336,7 @@ class VAETrainer:
 
     def monitor_mutual_information(self, pre_mi):
         self.vae.eval()
-        cur_mi = self.vae.calc_mi(self.eval_iter)
+        cur_mi = self.vae.calc_mi(data_loader=self.eval_iter)
         self.vae.train()
         print(f"pre mi: {pre_mi:.4f}. cur mi: {cur_mi:.4f}")
         if cur_mi - pre_mi < 0:
@@ -343,8 +347,8 @@ class VAETrainer:
     def evaluate(self):
         self.vae.eval()
         with torch.no_grad():
-            mi = self.vae.calc_mi(self.eval_iter)
-            au, _ = self.vae.calc_au(self.eval_iter)
+            mi = self.vae.calc_mi(data_loader=self.eval_iter)
+            au, _ = self.vae.calc_au(data_loader=self.eval_iter)
             loss, nll, kl, ppl = self.eval_nll(self.eval_iter)
 
         print(f'mi: {mi:.4f} au: {au}')
@@ -376,9 +380,9 @@ class VAETrainer:
         self.vae.eval()
         print('begin decoding..................................')
         with torch.no_grad():
-            self.vae.sample_from_prior(self.config["n_gen_samples"],
-                                       "sample",
-                                       self.generated_path)
+            self.vae.sample_from_prior(nsamples=self.config["n_gen_samples"],
+                                       strategy="sample",
+                                       fname=self.generated_path)
 
 
 class uniform_initializer(object):

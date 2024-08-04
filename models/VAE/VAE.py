@@ -140,11 +140,11 @@ class VAE(nn.Module):
 
         return z
 
-    def calc_au(self, data_iter, delta=0.01):
+    def calc_au(self, data_loader, delta=0.01):
         """compute the number of active units
         """
         cnt = 0
-        for batch_data, _ in data_iter:
+        for batch_data, _ in data_loader:
             batch_data = batch_data.to(self.device)
             mean, _ = self.encode_stats(batch_data)
             if cnt == 0:
@@ -155,10 +155,10 @@ class VAE(nn.Module):
 
         # (1, nz)
         mean_mean = means_sum / cnt
-        data_iter.reset()
+        data_loader.reset()
 
         cnt = 0
-        for batch_data, _ in data_iter:
+        for batch_data, _ in data_loader:
             batch_data = batch_data.to(self.device)
             if cnt == 0:
                 var_sum = ((mean - mean_mean) ** 2).sum(dim=0)
@@ -166,7 +166,7 @@ class VAE(nn.Module):
                 var_sum = var_sum + ((mean - mean_mean) ** 2).sum(dim=0)
             cnt += mean.size(0)
 
-        data_iter.reset()
+        data_loader.reset()
 
         # (nz)
         au_var = var_sum / (cnt - 1)
