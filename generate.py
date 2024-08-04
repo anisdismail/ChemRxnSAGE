@@ -9,16 +9,16 @@ import sentencepiece as spm
 class LSTMLMGenerator:
     def __init__(self, config):
         self.config = config
-        self.generator = LSTM_LM(config['vocab_size'], config['g_embed_dim'],
-                                 config['g_hidden_dim'], config['g_num_layers'],
-                                 config['cuda'], config['g_dropout_prob'])
+        self.generator = LSTM_LM(config['vocab_size'], config['LSTM_embed_dim'],
+                                 config['LSTM_hidden_dim'], config['LSTM_num_layers'],
+                                 config['cuda'], config['LSTM_dropout_prob'])
 
         self.generator.load_state_dict(torch.load(config["save_path"]))
 
     def generate_samples(self):
         self.generator.eval()
         samples = []
-        for _ in range(int(self.config["n_samples"] / self.config["batch_size"])):
+        for _ in range(int(self.config["n_gen_samples"] / self.config["batch_size"])):
             sample = self.generator.sample(
                 self.config["batch_size"], self.config["seq_len"]).cpu().data.numpy().tolist()
             samples.extend(sample)
@@ -52,7 +52,7 @@ class VAEGenerator:
         self.vae.eval()
         print('begin decoding..................................')
         with torch.no_grad():
-            self.vae.sample_from_prior(self.config["n_samples"],
+            self.vae.sample_from_prior(self.config["n_gen_samples"],
                                        "sample",
                                        self.generated_path)
 

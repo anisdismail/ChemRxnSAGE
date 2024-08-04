@@ -42,9 +42,9 @@ class LSTMLMTrainer:
             self.val_path, batch_size=config["batch_size"], PAD_TOKEN=self.PAD_TOKEN)
 
         # Set models, criteria, optimizers
-        self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['g_embed_dim'],
-                                 hidden_dim=config['g_hidden_dim'], num_layers=config['g_num_layers'],
-                                 use_cuda=config['cuda'], dropout_prob=config['g_dropout_prob'],
+        self.generator = LSTM_LM(vocab_size=config['vocab_size'], embedding_dim=config['LSTM_embed_dim'],
+                                 hidden_dim=config['LSTM_hidden_dim'], num_layers=config['LSTM_num_layers'],
+                                 use_cuda=config['cuda'], dropout_prob=config['LSTM_dropout_prob'],
                                  BOS_TOKEN=self.BOS_TOKEN, EOS_TOKEN=self.EOS_TOKEN)
 
         self.nll_loss = nn.NLLLoss()
@@ -53,7 +53,7 @@ class LSTMLMTrainer:
         self.nll_loss = self.nll_loss.to(self.device)
 
         self.gen_optimizer = optim.Adam(
-            params=self.generator.parameters(), lr=config["gen_lr"])
+            params=self.generator.parameters(), lr=config["LSTM_lr"])
 
     def train(self):
         print('#####################################################')
@@ -115,7 +115,7 @@ class LSTMLMTrainer:
     def generate_samples(self):
         self.generator.eval()
         samples = []
-        for _ in range(int(self.config["n_samples"] / self.config["batch_size"])):
+        for _ in range(int(self.config["n_gen_samples"] / self.config["batch_size"])):
             sample = self.generator.sample(
                 self.config["batch_size"], self.config["seq_len"]).cpu().tolist()
             samples.extend(sample)
@@ -159,7 +159,8 @@ class VAETrainer:
         self.encoder = LSTMEncoder(
             self.config, config["vocab_size"], model_init, emb_init)
         self.decoder = LSTMDecoder(
-            self.config, model_init, emb_init, BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
+            self.config, model_init, emb_init,
+            BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
         self.vae = VAE(self.encoder, self.decoder, self.config).to(self.device)
 
         self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(),
@@ -184,7 +185,7 @@ class VAETrainer:
                 report_num_sents += batch_size
 
                 loss, loss_rc, loss_kl = self.vae.loss(
-                    data, 1.0, nsamples=self.config["n_training_samples"])
+                    data, 1.0, nsamples=self.config["VAE_n_training_samples"])
 
                 assert (not loss_rc.requires_grad)
 
@@ -204,140 +205,184 @@ class VAETrainer:
             return test_loss, nll, kl, ppl
 
     def train(self):
-        opt_dict = {"not_improved": 0, "lr": 1., "best_loss": 1e4}
-        best_loss = 1e4
-        best_kl, best_nll, best_ppl, decay_cnt = 0, 0, 0, 0
+        # Initialize training state
+        opt_dict = {"not_improved": 0, "lr": 1.0, "best_loss": 1e4}
+        best_metrics = {"loss": 1e4, "kl": 0, "nll": 0, "ppl": 0}
+        decay_cnt, pre_mi = 0, 0
         kl_weight = self.config["kl_start"]
         anneal_rate = (1.0 - self.config["kl_start"]) / (self.config["warm_up"] *
                                                          (self.train_iter.get_data_num() / self.config["batch_size"]))
 
         print("Starting Training.............")
+
         for epoch in range(self.config["epochs"]):
             self.vae.train()
-            report_kl_loss = report_rec_loss = 0
-            report_num_words = report_num_sents = 0
+            report_metrics = {"kl_loss": 0, "rec_loss": 0,
+                              "num_words": 0, "num_sents": 0}
+
             for data, target in self.train_iter:
                 data, target = data.to(self.device), target.to(self.device)
                 batch_size, sent_len = data.size()
-                report_num_sents += batch_size
-                report_num_words += (sent_len - 1) * batch_size
+                report_metrics["num_sents"] += batch_size
+                report_metrics["num_words"] += (sent_len - 1) * batch_size
                 kl_weight = min(1.0, kl_weight + anneal_rate)
 
-                """
-                sub_iter = 1
-                burn_pre_loss = 1e4
-                burn_cur_loss = 0
-                burn_num_words = 0
-                
-                while self.config.aggressive and sub_iter < 100:
+                # Burn-in phase for aggressive training
+                if self.config["aggressive"]:
+                    self.perform_aggressive_training(data)
 
-                    self.enc_optimizer.zero_grad()
-                    self.dec_optimizer.zero_grad()
-                    burn_batch_size, burn_sents_len = data.size()
-                    burn_num_words += (burn_sents_len - 1) * burn_batch_size
-                    loss, loss_rc, loss_kl = self.vae.loss(
-                        data, target,
-                        kl_weight, nsamples=self.config.nsamples)
-                    burn_cur_loss += loss.sum().item()
-                    loss = loss.mean(dim=-1)
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        self.vae.parameters(), self.config.clip_grad)
+                # Normal training step
+                loss, loss_rc, loss_kl = self.compute_loss(data, kl_weight)
+                self.optimize_loss(loss)
+                self.update_report_metrics(report_metrics, loss_rc, loss_kl)
 
-                    self.enc_optimizer.step()
-                    id_ = np.random.random_integers(
-                        0, self.train_iter.get_data_num() - 1)
+                # Monitor mutual information (MI) during aggressive training
+                if self.config["aggressive"]:
+                    self.monitor_mutual_information(pre_mi)
 
-                    data, target = self.train_iter[id_]
+            # Report and log training progress
+            train_loss = (
+                report_metrics["rec_loss"] + report_metrics["kl_loss"]) / report_metrics["num_sents"]
+            print(f'kl weight {kl_weight:.4f}')
+            print(
+                f'epoch: {epoch}, avg_loss: {train_loss:.4f}, kl: {report_metrics["kl_loss"] / report_metrics["num_sents"]:.4f}, recon: {report_metrics["rec_loss"] / report_metrics["num_sents"]:.4f}')
 
-                    if sub_iter % 15 == 0:
-                        burn_cur_loss /= burn_num_words
-                        if burn_pre_loss - burn_cur_loss < 0:
-                            break
-                        burn_pre_loss = burn_cur_loss
-                        burn_cur_loss = burn_num_words = 0
+            # Evaluate on validation set
+            eval_metrics = self.evaluate()
 
-                    sub_iter += 1
-                """
-                self.enc_optimizer.zero_grad()
-                self.dec_optimizer.zero_grad()
+            # Check for improvement and adjust learning rate if necessary
+            self.check_improvement(
+                eval_metrics, opt_dict, best_metrics, decay_cnt, epoch)
 
-                loss, loss_rc, loss_kl = self.vae.loss(
-                    data, kl_weight, nsamples=self.config["n_training_samples"])
-                loss = loss.mean(dim=-1)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    self.vae.parameters(), self.config["clip_grad"])
-                report_rec_loss += loss_rc.sum().item()
-                report_kl_loss += loss_kl.sum().item()
-
-                """if not self.config["aggressive"]:
-                    self.enc_optimizer.step()
-                """
-                self.enc_optimizer.step()
-                self.dec_optimizer.step()
-
-            train_loss = (report_rec_loss + report_kl_loss) / \
-                report_num_sents
-
-            print(f'epoch: {epoch}, avg_loss: {train_loss:.4f}, kl: {report_kl_loss / report_num_sents:.4f}, recon: {report_rec_loss / report_num_sents:.4f}')
-            report_rec_loss, report_kl_loss, report_num_words, report_num_sents = 0, 0, 0, 0
-            """
-                TODO: add the mi to work on aggressive training
-                if aggressive_flag and (iter_ % self.train)) == 0:
-                    vae.eval()
-                    cur_mi = calc_mi(vae, val_data_batch)
-                    vae.train()
-                    print("pre mi:%.4f. cur mi:%.4f" % (pre_mi, cur_mi))
-                    if cur_mi - pre_mi < 0:
-                        aggressive_flag = False
-                        print("STOP BURNING")
-
-                    pre_mi = cur_mi
-            """
-
-            print(f'kl weight { kl_weight:.4f}')
-            loss, nll, kl, ppl = self.eval_nll(self.eval_iter)
-
-            if loss < best_loss:
-                best_loss, best_nll, best_kl, best_ppl = loss, nll, kl, ppl
-                print(
-                    f'update best loss: {best_loss:.4f}, best_nll: {best_nll:.4f}, best_kl: {best_kl:.4f}, best_pll: {best_ppl:.4f}')
-                # torch.save(self.vae.state_dict(), self.config["save_path"])
-
-            if loss > opt_dict["best_loss"]:
-                opt_dict["not_improved"] += 1
-                if opt_dict["not_improved"] >= self.config["decay_epoch"] and epoch >= 15:
-                    opt_dict.update(
-                        {"best_loss": loss, "not_improved": 0, "lr": opt_dict["lr"] * self.config.lr_decay})
-                    decay_cnt += 1
-                    # self.vae.load_state_dict(
-                    #    torch.load(self.config["save_path"]))
-                    print(f'new lr: {opt_dict["lr"]}, new decay: {decay_cnt}')
-
-                    self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(
-                    ), lr=opt_dict["lr"], momentum=self.config["momentum"])
-                    self.dec_optimizer = optim.SGD(self.vae.decoder.parameters(
-                    ), lr=opt_dict["lr"], momentum=self.config["momentum"])
-            else:
-                opt_dict.update(
-                    {"best_loss": loss, "not_improved": 0})
+            # Generate samples and evaluate them
+            self.generate_and_evaluate_samples()
 
             if decay_cnt == self.config["max_decay"]:
                 break
+
             self.train_iter.reset()
 
-            self.generate_samples()
-            jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
-                self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
+    def perform_aggressive_training(self, data):
+        sub_iter = 1
+        burn_pre_loss = 1e4
+        burn_cur_loss = 0
+        batch_data_enc = data
+
+        while sub_iter < 100:
+            self.enc_optimizer.zero_grad()
+            self.dec_optimizer.zero_grad()
+
+            burn_cur_loss += self.burn_in_step(batch_data_enc)
+
+            if sub_iter % 15 == 0:
+                burn_cur_loss /= (self.train_iter.get_data_num() -
+                                  1) * batch_data_enc.size(0)
+                if burn_pre_loss - burn_cur_loss < 0:
+                    break
+                burn_pre_loss = burn_cur_loss
+                burn_cur_loss = 0
+
+            batch_data_enc, _ = self.train_iter.sample()
+            batch_data_enc = batch_data_enc.to(self.device)
+            sub_iter += 1
+
+    def burn_in_step(self, batch_data_enc):
+        loss, _, _ = self.vae.loss(
+            batch_data_enc, kl_weight=self.config["kl_start"], nsamples=self.config["VAE_n_training_samples"])
+        burn_loss = loss.sum().item()
+        loss = loss.mean(dim=-1)
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            self.vae.parameters(), self.config["clip_grad"])
+        self.enc_optimizer.step()
+
+        return burn_loss
+
+    def compute_loss(self, data, kl_weight):
+        loss, loss_rc, loss_kl = self.vae.loss(
+            data, kl_weight, nsamples=self.config["VAE_n_training_samples"])
+        loss = loss.mean(dim=-1)
+        return loss, loss_rc, loss_kl
+
+    def optimize_loss(self, loss):
+        self.enc_optimizer.zero_grad()
+        self.dec_optimizer.zero_grad()
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            self.vae.parameters(), self.config["clip_grad"])
+
+        if not self.config["aggressive"]:
+            self.enc_optimizer.step()
+
+        self.dec_optimizer.step()
+
+    def update_report_metrics(self, report_metrics, loss_rc, loss_kl):
+        report_metrics["rec_loss"] += loss_rc.sum().item()
+        report_metrics["kl_loss"] += loss_kl.sum().item()
+
+    def monitor_mutual_information(self, pre_mi):
+        self.vae.eval()
+        cur_mi = self.vae.calc_mi(self.eval_iter)
+        self.vae.train()
+        print(f"pre mi: {pre_mi:.4f}. cur mi: {cur_mi:.4f}")
+        if cur_mi - pre_mi < 0:
+            self.config["aggressive"] = False
+            print("STOP BURNING")
+        pre_mi = cur_mi
+
+    def log_epoch_results(self, epoch, kl_weight, report_metrics):
+        train_loss = (
+            report_metrics["rec_loss"] + report_metrics["kl_loss"]) / report_metrics["num_sents"]
+        print(f'kl weight {kl_weight:.4f}')
+        print(
+            f'epoch: {epoch}, avg_loss: {train_loss:.4f}, kl: {report_metrics["kl_loss"] / report_metrics["num_sents"]:.4f}, recon: {report_metrics["rec_loss"] / report_metrics["num_sents"]:.4f}')
+
+    def evaluate(self):
+        self.vae.eval()
+        with torch.no_grad():
+            mi = self.vae.calc_mi(self.eval_iter)
+            au, _ = self.vae.calc_au(self.eval_iter)
+            loss, nll, kl, ppl = self.eval_nll(self.eval_iter)
+
+        print(f'mi: {mi:.4f} au: {au}')
+        return {"loss": loss, "nll": nll, "kl": kl, "ppl": ppl}
+
+    def check_improvement(self, eval_metrics, opt_dict, best_metrics, decay_cnt, epoch):
+        if eval_metrics["loss"] < best_metrics["loss"]:
+            best_metrics.update(eval_metrics)
             print(
-                f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
+                f'update best loss: {best_metrics["loss"]:.4f}, best_nll: {best_metrics["nll"]:.4f}, best_kl: {best_metrics["kl"]:.4f}, best_ppl: {best_metrics["ppl"]:.4f}')
+            # torch.save(self.vae.state_dict(), self.config["save_path"])
+
+        if eval_metrics["loss"] > opt_dict["best_loss"]:
+            opt_dict["not_improved"] += 1
+            if opt_dict["not_improved"] >= self.config["decay_epoch"] and epoch >= 15:
+                opt_dict.update(
+                    {"best_loss": eval_metrics["loss"], "not_improved": 0, "lr": opt_dict["lr"] * self.config.lr_decay})
+                decay_cnt += 1
+                self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(
+                ), lr=opt_dict["lr"], momentum=self.config["momentum"])
+                self.dec_optimizer = optim.SGD(self.vae.decoder.parameters(
+                ), lr=opt_dict["lr"], momentum=self.config["momentum"])
+
+                print(f'new lr: {opt_dict["lr"]}, new decay: {decay_cnt}')
+        else:
+            opt_dict.update(
+                {"best_loss": eval_metrics["loss"], "not_improved": 0})
+
+    def generate_and_evaluate_samples(self):
+        self.generate_samples()
+        jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
+            self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
+        print(f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
 
     def generate_samples(self):
         self.vae.eval()
         print('begin decoding..................................')
         with torch.no_grad():
-            self.vae.sample_from_prior(self.config["n_samples"],
+            self.vae.sample_from_prior(self.config["n_gen_samples"],
                                        "sample",
                                        self.generated_path)
 

@@ -28,32 +28,42 @@ Make sure all elements used in product comes from reactants
 
 
 def filter_0(rxn):
+    # Split the reaction string into individual molecules
     mols = re.split(r"[>>|.]", rxn)
-    react = [mol for mol in mols[:-1] if len(mol) >= 1]
-    prod = [mols[-1]]
 
-    all_react_systems = []
-    prod_systems = []
-
-    for mol in react:
+    # Separate reactants and products
+    reactants = [mol for mol in mols[:-1] if mol]
+    products = [mols[-1]]
+ 
+    # Initialize lists to store atom types from reactants and products
+    reactant_atoms = []
+    product_atoms = []
+    # Process reactants
+    for mol in reactants:
         if mol:
-            mol = Chem.MolToSmiles(
+            # Convert the molecule to a canonical SMILES string without isomeric information
+            smiles = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            # if not Chem.MolFromSmarts(mol):
-            # print(mol)
-            mol = Chem.MolFromSmarts(mol)
-            atoms = get_atoms(mol)
-            all_react_systems += atoms
+            mol = Chem.MolFromSmarts(smiles)
 
-    for mol in prod:
+            # Extract atoms from the molecule
+            atoms = get_atoms(mol)
+            reactant_atoms.extend(atoms)
+
+    # Process products
+    for mol in products:
         if mol:
-            mol = Chem.MolToSmiles(
+            # Convert the molecule to a canonical SMILES string without isomeric information
+            smiles = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(mol)
-            atoms = get_atoms(mol)
-            prod_systems += atoms
+            mol = Chem.MolFromSmarts(smiles)
 
-    return set(set(prod_systems)).issubset(set(all_react_systems))
+            # Extract atoms from the molecule
+            atoms = get_atoms(mol)
+            product_atoms.extend(atoms)
+
+    # Check if all product atoms are present in the reactant atoms
+    return set(product_atoms).issubset(set(reactant_atoms))
 
 
 """ 
@@ -179,7 +189,7 @@ Filter 5: P-O Bond Cleavage
 
 def filter_5(rxn, thresh=0):
     mols = re.split(r"[>>|.]", rxn)
-    react = [mol for mol in mols[:-1] if len(mol) >= 1]
+    react = [mol for mol in mols[:-1] if mol]
     prod = [mols[-1]]
 
     all_react_systems = []
@@ -212,23 +222,33 @@ The reaction follows the following pattern : ....>>....
 
 
 def is_valid_rxn(rxn):
-    if re.fullmatch(r"[^>]+[>]{2}[^>]+", rxn) is None:
+    # Check if the reaction format is valid using a regular expression
+    if not re.fullmatch(r"[^>]+[>]{2}[^>]+", rxn):
         return False
+
+    # Split the reaction string into individual molecules
     mols = re.split(r"[>>|.]", rxn)
-    mols = [i for i in mols if i]
-    valid = True
+    mols = [mol for mol in mols if mol]
+
+    # Validate each molecule in the reaction
     for mol in mols:
-        mol = Chem.MolFromSmiles(mol)
-        valid = valid and mol is not None
-    if valid:
-        try:
-            Chem.rdChemReactions.ReactionFromSmarts(
-                rxn, useSmiles=True)
-        except:
-            valid = valid and False
-            print("error in reaction format")
-        return valid
-    return False
+        rdkit_mol = Chem.MolFromSmiles(mol)
+        if not rdkit_mol:
+            return False
+
+        # Convert to SMILES and back to ensure validity
+        smiles = Chem.MolToSmiles(rdkit_mol, isomericSmiles=False)
+        if not Chem.MolFromSmarts(smiles):
+            return False
+
+    # Validate the overall reaction format
+    try:
+        rdChemReactions.ReactionFromSmarts(rxn, useSmiles=False)
+    except Exception as e:
+        print("Error in reaction format:", e)
+        return False
+
+    return True
 
 
 """
