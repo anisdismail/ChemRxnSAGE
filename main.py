@@ -22,6 +22,8 @@ parser.add_argument("--val_path", type=str, default="validation/validation_targe
                     help="Path to the data directory containing the val dataset")
 parser.add_argument("--gene_path", type=str, default="/train/v2.4/gene.data",
                     help="Path to the data directory containing the generated dataset")
+parser.add_argument("--load_path", type=str, default="",
+                    help="Path to the trained models")
 parser.add_argument("--model", type=str, default="LSTM", choices=["LSTM", "VAE"],
                     help="model to train ")
 parser.add_argument('--n_gen_samples', type=int, default=39579, metavar='N',
@@ -41,7 +43,7 @@ parser.add_argument('--epochs', type=int, default=200,
 parser.add_argument('--seed', type=int, default=42,
                     help='random seed')
 
-
+# LSTM
 parser.add_argument('--LSTM_lr', type=float, default=1e-3, metavar='LR',
                     help='learning rate of generator optimizer (default: 1e-3)')
 parser.add_argument('--LSTM_embed_dim', type=int, default=64,
@@ -76,8 +78,6 @@ parser.add_argument("--max_decay", type=int, default=5)
 parser.add_argument("--VAE_n_training_samples", type=int, default=1)
 parser.add_argument("--VAE_LSTM_embed_dim", type=int, default=512)
 parser.add_argument("--VAE_latent_dim", type=int, default=32)
-
-
 
 
 # Parse the arguments

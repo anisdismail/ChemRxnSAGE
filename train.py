@@ -72,6 +72,8 @@ class LSTMLMTrainer:
                 f"Epoch {i}, Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}")
             print(
                 f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
+            torch.save(self.generator.state_dict(), os.path.join(
+                self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}.pt"))
 
         print('#####################################################\n\n')
 
@@ -255,12 +257,18 @@ class VAETrainer:
                 eval_metrics, opt_dict, best_metrics, decay_cnt, epoch)
 
             # Generate samples and evaluate them
-            self.generate_and_evaluate_samples()
+            self.generate_samples()
+            jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
+                self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
+            print(
+                f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
 
             if decay_cnt == self.config["max_decay"]:
                 break
 
             self.train_iter.reset()
+            torch.save(self.vae.state_dict(), os.path.join(
+                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics["loss"]:.4f}.pt"))
 
     def perform_aggressive_training(self, data):
         sub_iter = 1
@@ -332,13 +340,6 @@ class VAETrainer:
             print("STOP BURNING")
         pre_mi = cur_mi
 
-    def log_epoch_results(self, epoch, kl_weight, report_metrics):
-        train_loss = (
-            report_metrics["rec_loss"] + report_metrics["kl_loss"]) / report_metrics["num_sents"]
-        print(f'kl weight {kl_weight:.4f}')
-        print(
-            f'epoch: {epoch}, avg_loss: {train_loss:.4f}, kl: {report_metrics["kl_loss"] / report_metrics["num_sents"]:.4f}, recon: {report_metrics["rec_loss"] / report_metrics["num_sents"]:.4f}')
-
     def evaluate(self):
         self.vae.eval()
         with torch.no_grad():
@@ -354,7 +355,6 @@ class VAETrainer:
             best_metrics.update(eval_metrics)
             print(
                 f'update best loss: {best_metrics["loss"]:.4f}, best_nll: {best_metrics["nll"]:.4f}, best_kl: {best_metrics["kl"]:.4f}, best_ppl: {best_metrics["ppl"]:.4f}')
-            # torch.save(self.vae.state_dict(), self.config["save_path"])
 
         if eval_metrics["loss"] > opt_dict["best_loss"]:
             opt_dict["not_improved"] += 1
@@ -371,12 +371,6 @@ class VAETrainer:
         else:
             opt_dict.update(
                 {"best_loss": eval_metrics["loss"], "not_improved": 0})
-
-    def generate_and_evaluate_samples(self):
-        self.generate_samples()
-        jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
-            self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
-        print(f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
 
     def generate_samples(self):
         self.vae.eval()
