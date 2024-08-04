@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from rdkit import Chem
 from rdkit import RDLogger
+import logging
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 
@@ -15,7 +16,7 @@ def create_fingerprints(df, tokenizer, use_filters, config):
         df["validated"] = df["isValid"] & df["Filter_0"] & df["Filter_2"] & df["Filter_4"] & df["Filter_5"]
     validated = df["validated"].sum()
     if validated == 0:
-        print("No Valid Reactions, exiting...")
+        logging.info("No Valid Reactions, exiting...")
         sys.exit(0)
     # encode the strings into ids
     df["decoded_smiles_delimited"] = "[BOS]"+df["decoded_smiles"]+"[EOS]"

@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description="ChemRxnAIGen")
 parser.add_argument("--config", default=None, help='Configuration file path')
 parser.add_argument('--save_dir', type=str,
                     help="Save directory")
-parser.add_argument("--data_dir", type=str, default="Liu_Kheyer_Retrosynthesis_Data",
+parser.add_argument("--main_dir", type=str, default="Liu_Kheyer_Retrosynthesis_Data",
                     help="Path to the data directory containing the dataset")
 parser.add_argument("--train_path", type=str, default="/train/train_targets_ids_200.data",
                     help="Path to the data directory containing the train dataset")
@@ -91,7 +91,8 @@ if config.config is not None:
         config = {param: value for _, params in config.items()
                   for param, value in params.items()}
 else:
-    print("Arguments are required when configuration file is not provided")
+    logging.info(
+        "Arguments are required when configuration file is not provided")
     parser.print_help()
     sys.exit(1)
 
@@ -104,6 +105,8 @@ logging.basicConfig(level=logging.INFO,
 
 config["cuda"] = not config["no_cuda"] and torch.cuda.is_available()
 
+logging.info(json.dumps(config, indent=4))
+
 # fix seeds
 torch.manual_seed(config["seed"])
 np.random.seed(config["seed"])
@@ -115,21 +118,20 @@ if config["cuda"]:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
-print(config.keys())
 if config["mode"] == "train":
     if config["model"] == "LSTM":
-        print("training LSTM")
+        logging.info("training LSTM")
         trainer = LSTMLMTrainer(config=config)
     elif config["model"] == "VAE":
-        print("training VAE")
+        logging.info("training VAE")
         trainer = VAETrainer(config=config)
     trainer.train()
 
 elif config["mode"] == "generate":
     if config["model"] == "LSTM":
-        print("generating with LSTM")
+        logging.info("generating with LSTM")
         generator = LSTMLMGenerator(config=config)
     elif config["model"] == "VAE":
-        print("generating with VAE")
+        logging.info("generating with VAE")
         generator = VAEGenerator(config=config)
     generator.generate_samples()

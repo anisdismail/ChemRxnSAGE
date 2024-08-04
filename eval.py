@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import logging
 
 from preprocessing import create_fingerprints, decode_ids_np
 from utils import load_rxn_classifier, predict_rxn_type
@@ -39,7 +40,8 @@ def filters_pipeline(df):
 def process_results(data, tokenizer, config, use_filters=True):
     df = pd.DataFrame()
     # decode ids into smiles
-    df["decoded_smiles"] = np.apply_along_axis(decode_ids_np, 1, data, tokenizer)
+    df["decoded_smiles"] = np.apply_along_axis(
+        decode_ids_np, 1, data, tokenizer)
     # run the decoded smiles into the filters pipeline
     df = filters_pipeline(df)
     # transform the data into fingerprints
@@ -84,8 +86,8 @@ def generate_metrics_comparison(generated_file, centroids, centroids_strings, to
         val, filter0, filter2, filter4, filter5 = validity_statistics(df)
 
         filter_status = "Using Filters" if use_filters else "No Filters"
-        print(filter_status, jsd, avg_similarity, avg_str_similarity,
-              val, filter0, filter2, filter4, filter5)
+        logging.info(filter_status, jsd, avg_similarity, avg_str_similarity,
+                     val, filter0, filter2, filter4, filter5)
 
         return df, rxn_pred, gen_fingerprints
 

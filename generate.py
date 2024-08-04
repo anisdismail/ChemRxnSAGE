@@ -5,6 +5,7 @@ from models.VAE.VAE import VAE
 from models.VAE.LSTM_Decoder import LSTMDecoder
 from models.VAE.LSTM_Encoder import LSTMEncoder
 import sentencepiece as spm
+import logging
 
 
 class LSTMLMGenerator:
@@ -60,7 +61,7 @@ class VAEGenerator:
 
     def generate_samples(self):
         self.vae.eval()
-        print('begin decoding..................................')
+        logging.info('begin decoding..................................')
         with torch.no_grad():
             self.vae.sample_from_prior(self.config["n_gen_samples"],
                                        "sample",

@@ -12,21 +12,19 @@ from models.VAE.LSTM_Encoder import LSTMEncoder
 from dataloader import DataIterator
 from eval import generate_metrics_evaluation
 import sentencepiece as spm
+import logging
 
 
 class LSTMLMTrainer:
     def __init__(self, config):
         self.config = config
-        self.train_path = os.path.join(
-            config["data_dir"], config["train_path"])
-        self.val_path = os.path.join(
-            config["data_dir"], config["val_path"])
-        self.generated_path = os.path.join(
-            config["data_dir"], config["gene_path"])
+        self.train_path = os.path.join(config["train_path"])
+        self.val_path = os.path.join(config["val_path"])
+        self.generated_path = os.path.join(config["gene_path"])
 
-        with open(os.path.join(config["data_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(config["main_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
             self.centroids = np.loadtxt(f)
-        with open(os.path.join(config["data_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(config["main_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
             self.centroids_strings = np.loadtxt(f)
 
         spm.SentencePieceTrainer.train(
@@ -56,26 +54,27 @@ class LSTMLMTrainer:
             params=self.generator.parameters(), lr=config["LSTM_lr"])
 
     def train(self):
-        print('#####################################################')
-        print('Start training generator with MLE...')
-        print('#####################################################\n')
+        logging.info('#####################################################')
+        logging.info('Start training generator with MLE...')
+        logging.info('#####################################################\n')
 
         for i in range(0, self.config["epochs"]):
             train_loss = self.train_mle()
             val_loss = self.eval_nll(self.eval_iter)
-            print("generating...")
+            logging.info("generating...")
             self.generate_samples()
-            print("evaluating...")
+            logging.info("evaluating...")
             jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
                 self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
-            print(
+            logging.info(
                 f"Epoch {i}, Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}")
-            print(
+            logging.info(
                 f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
             torch.save(self.generator.state_dict(), os.path.join(
                 self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}.pt"))
 
-        print('#####################################################\n\n')
+        logging.info(
+            '#####################################################\n\n')
 
     def train_mle(self):
         """
@@ -110,7 +109,7 @@ class LSTMLMTrainer:
                 loss = self.nll_loss(pred, target)
                 total_loss += loss.item()
         avg_loss = total_loss / len(data_iter)
-        print('val loss:', avg_loss)
+        logging.info('val loss:', avg_loss)
         data_iter.reset()
         return avg_loss
 
@@ -130,16 +129,13 @@ class LSTMLMTrainer:
 class VAETrainer:
     def __init__(self, config):
         self.config = config
-        self.train_path = os.path.join(
-            config["data_dir"], config["train_path"])
-        self.val_path = os.path.join(
-            config["data_dir"], config["val_path"])
-        self.generated_path = os.path.join(
-            config["data_dir"], config["gene_path"])
+        self.train_path = os.path.join(config["train_path"])
+        self.val_path = os.path.join(config["val_path"])
+        self.generated_path = os.path.join(config["gene_path"])
 
-        with open(os.path.join(config["data_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(config["main_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
             self.centroids = np.loadtxt(f)
-        with open(os.path.join(config["data_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(config["main_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
             self.centroids_strings = np.loadtxt(f)
 
         spm.SentencePieceTrainer.train(
@@ -202,7 +198,7 @@ class VAETrainer:
             nll = (report_kl_loss + report_rec_loss) / report_num_sents
             kl = report_kl_loss / report_num_sents
             ppl = np.exp(nll * report_num_sents / report_num_words)
-            print(
+            logging.info(
                 f'VAL --- avg_loss: {test_loss:.4f}, kl: {report_kl_loss / report_num_sents:.4f}, recon: {report_rec_loss / report_num_sents:.4f}, nll: {nll:.4f}, ppl: {ppl:.4f}')
             data_iter.reset()
             return test_loss, nll, kl, ppl
@@ -216,7 +212,7 @@ class VAETrainer:
         anneal_rate = (1.0 - self.config["kl_start"]) / (self.config["warm_up"] *
                                                          (self.train_iter.get_data_num() / self.config["batch_size"]))
 
-        print("Starting Training.............")
+        logging.info("Starting Training.............")
 
         for epoch in range(self.config["epochs"]):
             self.vae.train()
@@ -248,8 +244,8 @@ class VAETrainer:
             # Report and log training progress
             train_loss = (
                 report_metrics["rec_loss"] + report_metrics["kl_loss"]) / report_metrics["num_sents"]
-            print(f'kl weight {kl_weight:.4f}')
-            print(
+            logging.info(f'kl weight {kl_weight:.4f}')
+            logging.info(
                 f'epoch: {epoch}, avg_loss: {train_loss:.4f}, kl: {report_metrics["kl_loss"] / report_metrics["num_sents"]:.4f}, recon: {report_metrics["rec_loss"] / report_metrics["num_sents"]:.4f}')
 
             # Evaluate on validation set
@@ -264,7 +260,7 @@ class VAETrainer:
             self.generate_samples()
             jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
                 self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
-            print(
+            logging.info(
                 f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
 
             if decay_cnt == self.config["max_decay"]:
@@ -272,7 +268,7 @@ class VAETrainer:
 
             self.train_iter.reset()
             torch.save(self.vae.state_dict(), os.path.join(
-                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics["loss"]:.4f}.pt"))
+                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics['loss']:.4f}.pt"))
 
     def perform_aggressive_training(self, data):
         sub_iter = 1
@@ -338,10 +334,10 @@ class VAETrainer:
         self.vae.eval()
         cur_mi = self.vae.calc_mi(data_loader=self.eval_iter)
         self.vae.train()
-        print(f"pre mi: {pre_mi:.4f}. cur mi: {cur_mi:.4f}")
+        logging.info(f"pre mi: {pre_mi:.4f}. cur mi: {cur_mi:.4f}")
         if cur_mi - pre_mi < 0:
             self.config["aggressive"] = False
-            print("STOP BURNING")
+            logging.info("STOP BURNING")
         pre_mi = cur_mi
 
     def evaluate(self):
@@ -351,13 +347,13 @@ class VAETrainer:
             au, _ = self.vae.calc_au(data_loader=self.eval_iter)
             loss, nll, kl, ppl = self.eval_nll(self.eval_iter)
 
-        print(f'mi: {mi:.4f} au: {au}')
+        logging.info(f'mi: {mi:.4f} au: {au}')
         return {"loss": loss, "nll": nll, "kl": kl, "ppl": ppl}
 
     def check_improvement(self, eval_metrics, opt_dict, best_metrics, decay_cnt, epoch):
         if eval_metrics["loss"] < best_metrics["loss"]:
             best_metrics.update(eval_metrics)
-            print(
+            logging.info(
                 f'update best loss: {best_metrics["loss"]:.4f}, best_nll: {best_metrics["nll"]:.4f}, best_kl: {best_metrics["kl"]:.4f}, best_ppl: {best_metrics["ppl"]:.4f}')
 
         if eval_metrics["loss"] > opt_dict["best_loss"]:
@@ -371,14 +367,15 @@ class VAETrainer:
                 self.dec_optimizer = optim.SGD(self.vae.decoder.parameters(
                 ), lr=opt_dict["lr"], momentum=self.config["momentum"])
 
-                print(f'new lr: {opt_dict["lr"]}, new decay: {decay_cnt}')
+                logging.info(
+                    f'new lr: {opt_dict["lr"]}, new decay: {decay_cnt}')
         else:
             opt_dict.update(
                 {"best_loss": eval_metrics["loss"], "not_improved": 0})
 
     def generate_samples(self):
         self.vae.eval()
-        print('begin decoding..................................')
+        logging.info('begin decoding..................................')
         with torch.no_grad():
             self.vae.sample_from_prior(nsamples=self.config["n_gen_samples"],
                                        strategy="sample",
