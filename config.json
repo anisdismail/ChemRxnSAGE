@@ -1,10 +1,11 @@
 {
     "general": {
-        "save_path": "/model_weights/synthesizer/test/test.pt",
+        "save_path": "/model_weights/synthesizer/test/",
         "data_dir": "Liu_Kheyer_Retrosynthesis_Data",
         "train_path": "train/train_targets_ids_200.data",
         "val_path": "validation/validation_targets_ids_200.data",
         "gene_path": "train/test/gene.data",
+        "load_path": "/model_weights/synthesizer/test/vae_epoch200_loss130.pt",
         "seed": 42,
         "model": "VAE",
         "n_gen_gen_samples": 39579,
