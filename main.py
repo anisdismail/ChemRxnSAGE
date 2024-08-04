@@ -24,7 +24,7 @@ parser.add_argument("--gene_path", type=str, default="/train/v2.4/gene.data",
                     help="Path to the data directory containing the generated dataset")
 parser.add_argument("--model", type=str, default="LSTM", choices=["LSTM", "VAE"],
                     help="model to train ")
-parser.add_argument('--n_samples', type=int, default=39579, metavar='N',
+parser.add_argument('--n_gen_samples', type=int, default=39579, metavar='N',
                     help='number of samples generated per time (default: 39579)')
 parser.add_argument("--mode", type=str, default="train", choices=["train", "generate"],
                     help="mode for model to train or to generate new reaction ")
@@ -32,8 +32,6 @@ parser.add_argument('--vocab_size', type=int, default=56, metavar='N',
                     help='vocabulary size (default: 56)')
 parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size (default: 64)')
-parser.add_argument('--load_path', type=str, default='',
-                    help='pretrained model path')
 parser.add_argument('--seq_len', type=int, default=200,
                     help='Generator sequence length (default: 200)')
 parser.add_argument('--no_cuda', action='store_true', default=False,
@@ -44,18 +42,16 @@ parser.add_argument('--seed', type=int, default=42,
                     help='random seed')
 
 
-parser.add_argument('--gen_lr', type=float, default=1e-3, metavar='LR',
+parser.add_argument('--LSTM_lr', type=float, default=1e-3, metavar='LR',
                     help='learning rate of generator optimizer (default: 1e-3)')
-parser.add_argument('--g_embed_dim', type=int, default=64,
+parser.add_argument('--LSTM_embed_dim', type=int, default=64,
                     help='Generator embedding dimension (default: 64)')
-parser.add_argument('--g_hidden_dim', type=int, default=256,
+parser.add_argument('--LSTM_hidden_dim', type=int, default=256,
                     help='Generator hidden dimension (default: 256)')
-parser.add_argument('--g_num_layers', type=int, default=4,
+parser.add_argument('--LSTM_num_layers', type=int, default=4,
                     help='Number of generator layers (default: 4)')
-parser.add_argument('--g_dropout_prob', type=float, default=0.5,
+parser.add_argument('--LSTM_dropout_prob', type=float, default=0.5,
                     help='Generator dropout probability (default: 0.5)')
-parser.add_argument('--g_weight_decay', type=float, default=0.0005,
-                    help='Generator weight decay (default: 0.0005)')
 
 # VAE
 parser.add_argument('--momentum', type=float, default=0.0, help='sgd momentum')
@@ -65,18 +61,24 @@ parser.add_argument('--kl_start', type=float, default=1.0,
                     help='starting KL weight')
 parser.add_argument('--aggressive', type=int, default=0,
                     help='apply aggressive training when nonzero, reduce to vanilla VAE when aggressive is 0')
-parser.add_argument('--enc_nh', type=int, default=1024,
+parser.add_argument('--LSTM_encoder_hidden_dim', type=int, default=1024,
                     help='encoder hidden size')
-parser.add_argument('--dec_nh', type=int, default=1024,
+parser.add_argument('--LSTM_decoder_hidden_dim', type=int, default=1024,
                     help='decoder hidden size')
-parser.add_argument('--dec_dropout_in', type=float,
+parser.add_argument('--LSTM_decoder_dropout_in', type=float,
                     default=0.5, help='decoder input dropout')
-parser.add_argument('--dec_dropout_out', type=float,
+parser.add_argument('--LSTM_decoder_dropout_out', type=float,
                     default=0.5, help='decoder output dropout')
 parser.add_argument("--clip_grad", type=int, default=5)
 parser.add_argument("--decay_epoch", type=int, default=2)
 parser.add_argument("--lr_decay", type=float, default=0.5)
 parser.add_argument("--max_decay", type=int, default=5)
+parser.add_argument("--VAE_n_training_samples", type=int, default=1)
+parser.add_argument("--VAE_LSTM_embed_dim", type=int, default=512)
+parser.add_argument("--VAE_latent_dim", type=int, default=32)
+
+
+
 
 # Parse the arguments
 config = parser.parse_args()

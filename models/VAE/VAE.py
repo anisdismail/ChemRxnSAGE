@@ -1,10 +1,13 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
-import time
-import numpy as np
 import math
+
+"""
+Code adapted from PyTorch implementation of 
+"Lagging Inference Networks and Posterior Collapse
+in Variational Autoencoders" (ICLR 2019),
+https://github.com/jxhe/vae-lagging-encoder
+"""
 
 
 def log_sum_exp(value, dim=None, keepdim=False):
@@ -32,7 +35,7 @@ class VAE(nn.Module):
         self.decoder = decoder
         self.config = config
 
-        self.nz = config["nz"]
+        self.nz = config["VAE_latent_dim"]
         self.device = 'cuda' if config["cuda"] else 'cpu'
         loc = torch.zeros(self.nz, device=self.device)
         scale = torch.ones(self.nz, device=self.device)

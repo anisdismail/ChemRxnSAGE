@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import math
-import numpy as np
+
+"""
+Code adapted from PyTorch implementation of 
+"Lagging Inference Networks and Posterior Collapse
+in Variational Autoencoders" (ICLR 2019),
+https://github.com/jxhe/vae-lagging-encoder
+"""
 
 
 def log_sum_exp(value, dim=None, keepdim=False):
@@ -128,21 +132,22 @@ class LSTMEncoder(GaussianEncoderBase):
 
     def __init__(self, config, vocab_size, model_init, emb_init):
         super(LSTMEncoder, self).__init__()
-        self.ni = config["ni"]
-        self.nh = config["enc_nh"]
-        self.nz = config["nz"]
+        self.ni = config["VAE_LSTM_embed_dim"]
+        self.nh = config["LSTM_encoder_hidden_dim"]
+        self.nz = config["VAE_latent_dim"]
         self.device = 'cuda' if config["cuda"] else 'cpu'
 
-        self.embed = nn.Embedding(vocab_size,  config["ni"])
+        self.embed = nn.Embedding(vocab_size,  config["VAE_LSTM_embed_dim"])
 
-        self.lstm = nn.LSTM(input_size=config["ni"],
-                            hidden_size=config["enc_nh"],
+        self.lstm = nn.LSTM(input_size=config["VAE_LSTM_embed_dim"],
+                            hidden_size=config["LSTM_encoder_hidden_dim"],
                             num_layers=1,
                             batch_first=True,
                             dropout=0)
 
         # dimension transformation to z (mean and logvar)
-        self.linear = nn.Linear(config["enc_nh"], 2 * config["nz"], bias=False)
+        self.linear = nn.Linear(
+            config["LSTM_encoder_hidden_dim"], 2 * config["VAE_latent_dim"], bias=False)
 
         self.reset_parameters(model_init, emb_init)
 
@@ -188,4 +193,3 @@ class LSTMEncoder(GaussianEncoderBase):
 
     #     # (batch_size, nz)
     #     mu, logvar = self.forward(x)
-    

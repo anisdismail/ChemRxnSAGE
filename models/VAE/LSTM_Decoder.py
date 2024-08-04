@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
-import numpy as np
-
-# TODO: provide reference where I brought the og implementation
+"""
+Code adapted from PyTorch implementation of 
+"Lagging Inference Networks and Posterior Collapse
+in Variational Autoencoders" (ICLR 2019),
+https://github.com/jxhe/vae-lagging-encoder
+"""
 
 
 class LSTMDecoder(nn.Module):
@@ -13,9 +15,9 @@ class LSTMDecoder(nn.Module):
 
     def __init__(self, config, model_init, emb_init, BOS_token, EOS_token):
         super().__init__()
-        self.ni = config["ni"]
-        self.nh = config["dec_nh"]
-        self.nz = config["nz"]
+        self.ni = config["VAE_LSTM_embed_dim"]
+        self.nh = config["LSTM_decoder_hidden_dim"]
+        self.nz = config["VAE_latent_dim"]
         self.seq_len = config["seq_len"]
         self.bos_token = BOS_token
         self.eos_token = EOS_token
@@ -23,24 +25,24 @@ class LSTMDecoder(nn.Module):
 
         # no padding when setting padding_idx to -1
         self.embed = nn.Embedding(
-            config['vocab_size'], config["ni"], padding_idx=-1)
+            config['vocab_size'], config["VAE_LSTM_embed_dim"], padding_idx=-1)
 
-        self.dropout_in = nn.Dropout(config["dec_dropout_in"])
-        self.dropout_out = nn.Dropout(config["dec_dropout_out"])
+        self.dropout_in = nn.Dropout(config["LSTM_decoder_dropout_in"])
+        self.dropout_out = nn.Dropout(config["LSTM_decoder_dropout_out"])
 
         # for initializing hidden state and cell
         self.trans_linear = nn.Linear(
-            config["nz"], config["dec_nh"], bias=False)
+            config["VAE_latent_dim"], config["LSTM_decoder_hidden_dim"], bias=False)
 
         # concatenate z with input
-        self.lstm = nn.LSTM(input_size=config["ni"] + config["nz"],
-                            hidden_size=config["dec_nh"],
+        self.lstm = nn.LSTM(input_size=config["VAE_LSTM_embed_dim"] + config["VAE_latent_dim"],
+                            hidden_size=config["LSTM_decoder_hidden_dim"],
                             num_layers=1,
                             batch_first=True)
 
         # prediction layer
         self.pred_linear = nn.Linear(
-            config["dec_nh"], config['vocab_size'], bias=False)
+            config["LSTM_decoder_hidden_dim"], config['vocab_size'], bias=False)
 
         vocab_mask = torch.ones(config['vocab_size'])
         # vocab_mask[vocab['[PAD]']] = 0

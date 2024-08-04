@@ -2,14 +2,13 @@
     "general": {
         "save_path": "/model_weights/synthesizer/test/test.pt",
         "data_dir": "Liu_Kheyer_Retrosynthesis_Data",
-        "seed": 42,
         "train_path": "train/train_targets_ids_200.data",
         "val_path": "validation/validation_targets_ids_200.data",
         "gene_path": "train/test/gene.data",
-        "model": "LSTM",
-        "n_samples": 39579,
+        "seed": 42,
+        "model": "VAE",
+        "n_gen_gen_samples": 39579,
         "mode": "train",
-        "load_path": "",
         "no_cuda": false,
         "vocab_size": 56,
         "batch_size": 64,
@@ -17,30 +16,27 @@
         "epochs": 1
     },
     "LSTM": {
-        "gen_lr": 0.001,
-        "g_embed_dim": 64,
-        "g_hidden_dim": 256,
-        "g_num_layers": 4,
-        "g_dropout_prob": 0.5,
-        "g_weight_decay": 0.0005
+        "LSTM_lr": 0.001,
+        "LSTM_embed_dim": 64,
+        "LSTM_hidden_dim": 256,
+        "LSTM_num_layers": 4,
+        "LSTM_dropout_prob": 0.5
     },
     "VAE": {
-        "ni": 512,
-        "nz": 32,
+        "VAE_LSTM_embed_dim": 512,
+        "VAE_latent_dim": 32,
         "momentum": 0.0,
-        "decode_from": "",
-        "decode_input": "",
         "warm_up": 10,
         "kl_start": 1.0,
-        "aggressive": 0,
-        "enc_nh": 1024,
-        "dec_nh": 1024,
-        "dec_dropout_in": 0.5,
-        "dec_dropout_out": 0.5,
+        "aggressive": true,
+        "LSTM_encoder_hidden_dim": 1024,
+        "LSTM_decoder_hidden_dim": 1024,
+        "LSTM_decoder_dropout_in": 0.5,
+        "LSTM_decoder_dropout_out": 0.5,
         "clip_grad": 5.0,
         "decay_epoch": 2,
         "lr_decay": 0.5,
         "max_decay": 5,
-        "n_training_samples": 1
+        "VAE_n_training_samples": 1
     }
 }

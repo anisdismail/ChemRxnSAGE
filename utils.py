@@ -9,6 +9,7 @@ lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 
 
+
 def load_rxn_classifier(config):
     rxn_classifier = torch.load(os.path.join(
         config["data_dir"], "final_nn_classifier.pth"))
