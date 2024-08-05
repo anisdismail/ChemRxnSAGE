@@ -13,3 +13,4 @@ dependencies:
   - pip:
     - plotly==5.15.0
     - sentencepiece
+    - ipykernel
