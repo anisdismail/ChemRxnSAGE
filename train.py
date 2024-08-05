@@ -71,7 +71,7 @@ class LSTMLMTrainer:
             logging.info(
                 f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
             torch.save(self.generator.state_dict(), os.path.join(
-                self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}.pt"))
+                self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}_val{valid:.4f}.pt"))
 
         logging.info(
             '#####################################################\n\n')
@@ -268,7 +268,7 @@ class VAETrainer:
 
             self.train_iter.reset()
             torch.save(self.vae.state_dict(), os.path.join(
-                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics['loss']:.4f}.pt"))
+                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics['loss']:.4f}_val{valid:.4f}.pt"))
 
     def perform_aggressive_training(self, data):
         sub_iter = 1
@@ -360,7 +360,7 @@ class VAETrainer:
             opt_dict["not_improved"] += 1
             if opt_dict["not_improved"] >= self.config["decay_epoch"] and epoch >= 15:
                 opt_dict.update(
-                    {"best_loss": eval_metrics["loss"], "not_improved": 0, "lr": opt_dict["lr"] * self.config.lr_decay})
+                    {"best_loss": eval_metrics["loss"], "not_improved": 0, "lr": opt_dict["lr"] * self.config["lr_decay"]})
                 decay_cnt += 1
                 self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(
                 ), lr=opt_dict["lr"], momentum=self.config["momentum"])
