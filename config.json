@@ -1,11 +1,11 @@
 {
     "general": {
-        "save_path": "model_weights/synthesizer/test/",
+        "save_path": "model_weights/synthesizer/reproduced/v4/",
         "main_dir": "Liu_Kheyer_Retrosynthesis_Data",
         "train_path": "Liu_Kheyer_Retrosynthesis_Data/train/train_targets_ids_200.data",
         "val_path": "Liu_Kheyer_Retrosynthesis_Data/validation/validation_targets_ids_200.data",
-        "gene_path": "Liu_Kheyer_Retrosynthesis_Data/train/test/gene.data",
-        "log_path": "Liu_Kheyer_Retrosynthesis_Data/train/test/train.log",
+        "gene_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v4/gene.data",
+        "log_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v4/train.log",
         "load_path": "model_weights/synthesizer/test/vae_epoch200_loss130.pt",
         "model": "VAE",
         "mode": "train",
@@ -15,7 +15,7 @@
         "vocab_size": 56,
         "batch_size": 64,
         "seq_len": 200,
-        "epochs": 1
+        "epochs": 200
     },
     "LSTM": {
         "LSTM_lr": 0.001,
@@ -30,7 +30,7 @@
         "momentum": 0.0,
         "warm_up": 10,
         "kl_start": 1.0,
-        "aggressive": true,
+        "aggressive": false,
         "LSTM_encoder_hidden_dim": 1024,
         "LSTM_decoder_hidden_dim": 1024,
         "LSTM_decoder_dropout_in": 0.5,
