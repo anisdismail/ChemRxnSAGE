@@ -91,7 +91,7 @@ class GaussianEncoderBase(nn.Module):
 
         mu_expd = mu.unsqueeze(1).expand(batch_size, nsamples, nz)
         std_expd = std.unsqueeze(1).expand(batch_size, nsamples, nz)
-
+        # source of variation - sampling from normal distribution
         eps = torch.zeros_like(std_expd).normal_()
 
         return mu_expd + torch.mul(eps, std_expd)
@@ -130,24 +130,24 @@ class GaussianEncoderBase(nn.Module):
 class LSTMEncoder(GaussianEncoderBase):
     """Gaussian LSTM Encoder with constant-length batching"""
 
-    def __init__(self, config, vocab_size, model_init, emb_init):
+    def __init__(self, vocab_size, model_init, emb_init, embed_dim, hidden_dim, latent_dim, use_cuda):
         super(LSTMEncoder, self).__init__()
-        self.ni = config["VAE_LSTM_embed_dim"]
-        self.nh = config["LSTM_encoder_hidden_dim"]
-        self.nz = config["VAE_latent_dim"]
-        self.device = 'cuda' if config["cuda"] else 'cpu'
+        self.ni = embed_dim
+        self.nh = hidden_dim
+        self.nz = latent_dim
+        self.device = 'cuda' if use_cuda else 'cpu'
 
-        self.embed = nn.Embedding(vocab_size,  config["VAE_LSTM_embed_dim"])
+        self.embed = nn.Embedding(vocab_size,  self.ni)
 
-        self.lstm = nn.LSTM(input_size=config["VAE_LSTM_embed_dim"],
-                            hidden_size=config["LSTM_encoder_hidden_dim"],
+        self.lstm = nn.LSTM(input_size=self.ni,
+                            hidden_size=self.nh,
                             num_layers=1,
                             batch_first=True,
                             dropout=0)
 
         # dimension transformation to z (mean and logvar)
         self.linear = nn.Linear(
-            config["LSTM_encoder_hidden_dim"], 2 * config["VAE_latent_dim"], bias=False)
+            self.nh, 2 * self.nz, bias=False)
 
         self.reset_parameters(model_init, emb_init)
 

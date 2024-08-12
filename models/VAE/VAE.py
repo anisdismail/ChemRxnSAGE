@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import math
+import numpy as np
+import random
 
 """
-Code adapted from PyTorch implementation of 
+Code adapted from PyTorch implementation of
 "Lagging Inference Networks and Posterior Collapse
 in Variational Autoencoders" (ICLR 2019),
 https://github.com/jxhe/vae-lagging-encoder
@@ -29,17 +31,15 @@ def log_sum_exp(value, dim=None, keepdim=False):
 class VAE(nn.Module):
     """VAE with normal prior"""
 
-    def __init__(self, encoder, decoder, config):
+    def __init__(self, encoder, decoder, latent_dim, use_cuda):
         super(VAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.config = config
 
-        self.nz = config["VAE_latent_dim"]
-        self.device = 'cuda' if config["cuda"] else 'cpu'
+        self.nz = latent_dim
+        self.device = 'cuda' if use_cuda else 'cpu'
         loc = torch.zeros(self.nz, device=self.device)
         scale = torch.ones(self.nz, device=self.device)
-
         self.prior = torch.distributions.normal.Normal(loc, scale)
 
     def encode(self, x, nsamples=1):
@@ -117,13 +117,18 @@ class VAE(nn.Module):
 
         return KL
 
-    def sample_from_prior(self, nsamples, strategy, fname):
+    def sample_from_prior(self, nsamples, strategy, fname, generator):
         """sampling from prior distribution
 
         Returns: Tensor
             Tensor: samples from prior with shape (nsamples, nz)
         """
-        z = self.prior.sample((nsamples,))
+        # z = self.prior.sample((nsamples,))
+        loc = torch.zeros(self.nz, device=self.device)
+        scale = torch.ones(self.nz, device=self.device)
+        with torch.no_grad():
+            z = torch.normal(loc.expand((nsamples, self.nz)),
+                             scale.expand((nsamples, self.nz)), generator=generator)
         with open(fname, 'w', encoding="utf-8") as fout:
             decoded_batch = self.decode(z, strategy)
             lines_to_write = [
@@ -160,6 +165,7 @@ class VAE(nn.Module):
         cnt = 0
         for batch_data, _ in data_loader:
             batch_data = batch_data.to(self.device)
+            mean, _ = self.encode_stats(batch_data)
             if cnt == 0:
                 var_sum = ((mean - mean_mean) ** 2).sum(dim=0)
             else:
@@ -173,51 +179,104 @@ class VAE(nn.Module):
         return (au_var >= delta).sum().item(), au_var
 
     def calc_mi(self, data_loader):
-        """Approximate the mutual information between x and z
-        I(x, z) = E_xE_{q(z|x)}log(q(z|x)) - E_xE_{q(z|x)}log(q(z))
-        Returns: Float
-        """
-        neg_entropy_sum = 0.0
-        log_qz_sum = 0.0
-        total_samples = 0
-
-        for data, _ in data_loader:
-            x = data.to(self.device)
-
-            # [x_batch, nz]
-            mu, logvar = self.encode_stats(x)
-            x_batch, nz = mu.size()
-
-            # E_{q(z|x)}log(q(z|x)) = -0.5*nz*log(2*\pi) - 0.5*(1+logvar).sum(-1)
-            neg_entropy = (-0.5 * nz * math.log(2 * math.pi) -
-                           0.5 * (1 + logvar).sum(-1)).mean()
-
-            # [z_batch, 1, nz]
-            z_samples = self.encoder.reparameterize(mu, logvar, 1)
-
-            # [1, x_batch, nz]
-            mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
-            var = logvar.exp()
-
-            # (z_batch, x_batch, nz)
-            dev = z_samples - mu
-
-            # (z_batch, x_batch)
-            log_density = -0.5 * ((dev ** 2) / var).sum(dim=-1) - \
-                0.5 * (nz * math.log(2 * math.pi) + logvar.sum(-1))
-
-            # log q(z): aggregate posterior
-            # [z_batch]
-            log_qz = log_sum_exp(log_density, dim=1) - math.log(x_batch)
-
-            # Accumulate the neg_entropy and log_qz for the batch
-            neg_entropy_sum += neg_entropy.item() * x_batch
-            log_qz_sum += log_qz.sum().item()
-            total_samples += x_batch
-
-        # Compute the final mutual information estimate
-        neg_entropy_mean = neg_entropy_sum / total_samples
-        log_qz_mean = log_qz_sum / total_samples
+        mi = 0
+        num_examples = 0
+        for batch_data, _ in data_loader:
+            batch_data = batch_data.to(self.device)
+            batch_size = batch_data.size(0)
+            num_examples += batch_size
+            mutual_info = self.calc_mi_q(batch_data)
+            mi += mutual_info * batch_size
 
         data_loader.reset()
-        return (neg_entropy_mean - log_qz_mean)
+        return mi / num_examples
+
+    def calc_mi_q(self, x):
+        """Approximate the mutual information between x and z
+        I(x, z) = E_xE_{q(z|x)}log(q(z|x)) - E_xE_{q(z|x)}log(q(z))
+
+        Returns: Float
+
+        """
+
+        # [x_batch, nz]
+        mu, logvar = self.encode_stats(x)
+
+        x_batch, nz = mu.size()
+
+        # E_{q(z|x)}log(q(z|x)) = -0.5*nz*log(2*\pi) - 0.5*(1+logvar).sum(-1)
+        neg_entropy = (-0.5 * nz * math.log(2 * math.pi) -
+                       0.5 * (1 + logvar).sum(-1)).mean()
+
+        # [z_batch, 1, nz]
+        z_samples = self.encoder.reparameterize(mu, logvar, 1)
+
+        # [1, x_batch, nz]
+        mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
+        var = logvar.exp()
+
+        # (z_batch, x_batch, nz)
+        dev = z_samples - mu
+
+        # (z_batch, x_batch)
+        log_density = -0.5 * ((dev ** 2) / var).sum(dim=-1) - \
+            0.5 * (nz * math.log(2 * math.pi) + logvar.sum(-1))
+
+        # log q(z): aggregate posterior
+        # [z_batch]
+        log_qz = log_sum_exp(log_density, dim=1) - math.log(x_batch)
+
+        return (neg_entropy - log_qz.mean(-1)).item()
+
+    def calc_mi_oneshot(self, data_loader):
+        mus = []
+        logvars = []
+        z_samples_list = []
+
+        for batch_data, _ in data_loader:
+            batch_data = batch_data.to(self.device)
+
+            # Encode statistics
+            mu, logvar = self.encode_stats(batch_data)
+
+            # Collect mu and logvar
+            mus.append(mu)
+            logvars.append(logvar)
+
+            # Reparameterization trick to sample z
+            z_samples = self.encoder.reparameterize(mu, logvar, 1)
+            z_samples_list.append(z_samples)
+
+        # Concatenate all collected data
+        mus = torch.cat(mus, dim=0)
+        logvars = torch.cat(logvars, dim=0)
+        # Concatenate along batch dimension
+        z_samples = torch.cat(z_samples_list, dim=0)
+
+        # Entire dataset size and latent space size
+        x_batch, nz = mus.size()
+
+        # E_{q(z|x)}log(q(z|x))
+        neg_entropy = (-0.5 * nz * math.log(2 * math.pi) -
+                       0.5 * (1 + logvars).sum(-1)).mean()
+
+        # Reshape for broadcasting
+        mus = mus.unsqueeze(0)
+        logvars = logvars.unsqueeze(0)
+        var = logvars.exp()
+
+        # Calculate the deviation
+        dev = z_samples - mus
+
+        # Log density calculation
+        log_density = -0.5 * ((dev ** 2) / var).sum(dim=-1) - \
+            0.5 * (nz * math.log(2 * math.pi) + logvars.sum(-1))
+
+        # log q(z): aggregate posterior
+        log_qz = log_sum_exp(log_density, dim=1) - math.log(x_batch)
+
+        # Mutual information calculation
+        mi = (neg_entropy - log_qz.mean(-1)).item()
+
+        data_loader.reset()
+        return max(mi, 0)

@@ -71,7 +71,7 @@ class LSTM_LM(nn.Module):
         for param in self.parameters():
             param.data.uniform_(-0.05, 0.05)
 
-    def sample(self, batch_size, seq_len, x=None):
+    def sample(self, batch_size, seq_len, generator, x=None):
         """
         Samples the network and returns a batch of samples of length seq_len.
 
@@ -111,7 +111,7 @@ class LSTM_LM(nn.Module):
             prob = torch.softmax(out, dim=-1)
 
             # Sample from the distribution
-            x = torch.multinomial(prob, 1)
+            x = torch.multinomial(prob, 1, generator=generator)
 
             # Store the sample in the output tensor
             output_samples[:, given_len + t] = x.squeeze(1)
