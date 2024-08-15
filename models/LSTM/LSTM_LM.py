@@ -71,16 +71,52 @@ class LSTM_LM(nn.Module):
         for param in self.parameters():
             param.data.uniform_(-0.05, 0.05)
 
-    def sample(self, batch_size, seq_len, x=None):
+    def sample(self, batch_size, seq_len, generator, x=None):
         """
         Samples the network and returns a batch of samples of length seq_len.
 
         Outputs: out
             - out: (batch_size * seq_len)
         """
-        # Initialize hidden states
-        h, c = self.init_hidden(batch_size if x is None else x.size(0))
 
+        samples = []
+        if x is None:
+            h, c = self.init_hidden(batch_size)
+            x = torch.full((batch_size, 1), self.BOS_TOKEN,
+                           dtype=torch.int64, device=self.device)
+            for _ in range(seq_len):
+                out, h, c = self.step(x, h, c)
+                prob = torch.exp(out)
+                x = torch.multinomial(prob, 1, generator=generator)
+                samples.append(x)
+        else:
+            h, c = self.init_hidden(x.size(0))
+            given_len = x.size(1)
+            lis = x.chunk(x.size(1), dim=1)
+            for i in range(given_len):
+                out, h, c = self.step(lis[i], h, c)
+                samples.append(lis[i])
+            prob = torch.exp(out)
+            x = torch.multinomial(prob, 1, generator=generator)
+            for _ in range(given_len, seq_len):
+                samples.append(x)
+                out, h, c = self.step(x, h, c)
+                prob = torch.exp(out)
+                x = torch.multinomial(prob, 1)
+        out = torch.cat(samples, dim=1)  # along the batch_size dimension
+        return out
+
+#    def sample(self, batch_size, seq_len, generator, x=None):
+        """
+        Samples the network and returns a batch of samples of length seq_len.
+
+        Outputs: out
+            - out: (batch_size * seq_len)
+        """
+
+
+"""        # Initialize hidden states
+        h, c = self.init_hidden(batch_size if x is None else x.size(0))
         # Prepare the input tensor
         if x is None:
             x = torch.full((batch_size, 1), self.BOS_TOKEN,
@@ -111,6 +147,7 @@ class LSTM_LM(nn.Module):
             prob = torch.softmax(out, dim=-1)
 
             # Sample from the distribution
+            # x = torch.multinomial(prob, 1, generator=generator)
             x = torch.multinomial(prob, 1)
 
             # Store the sample in the output tensor
@@ -123,42 +160,4 @@ class LSTM_LM(nn.Module):
             x = x * active_mask.unsqueeze(1)
 
         return output_samples
-
-
-# def sample(self, batch_size, seq_len, x=None):
-        """
-        Samples the network and returns a batch of samples of length seq_len.
-
-        Outputs: out
-            - out: (batch_size * seq_len)
-        """
-
-
-"""        samples = []
-        if x is None:
-            h, c = self.init_hidden(batch_size)
-            x = torch.full((batch_size, 1), self.bos_token, dtype=torch.int64)
-            if self.use_cuda:
-                x = x.cuda()
-            for _ in range(seq_len):
-                out, h, c = self.step(x, h, c)
-                prob = torch.exp(out)
-                x = torch.multinomial(prob, 1)
-                samples.append(x)
-        else:
-            h, c = self.init_hidden(x.size(0))
-            given_len = x.size(1)
-            lis = x.chunk(x.size(1), dim=1)
-            for i in range(given_len):
-                out, h, c = self.step(lis[i], h, c)
-                samples.append(lis[i])
-            prob = torch.exp(out)
-            x = torch.multinomial(prob, 1)
-            for _ in range(given_len, seq_len):
-                samples.append(x)
-                out, h, c = self.step(x, h, c)
-                prob = torch.exp(out)
-                x = torch.multinomial(prob, 1)
-        out = torch.cat(samples, dim=1)  # along the batch_size dimension
-        return out
-        """
+"""

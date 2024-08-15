@@ -13,38 +13,39 @@ https://github.com/jxhe/vae-lagging-encoder
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
 
-    def __init__(self, config, model_init, emb_init, BOS_token, EOS_token):
+    def __init__(self, model_init, emb_init, BOS_token, EOS_token, embed_dim, 
+                 hidden_dim, latent_dim, seq_len, vocab_size, dropout_in, dropout_out,use_cuda):
         super().__init__()
-        self.ni = config["VAE_LSTM_embed_dim"]
-        self.nh = config["LSTM_decoder_hidden_dim"]
-        self.nz = config["VAE_latent_dim"]
-        self.seq_len = config["seq_len"]
+        self.ni = embed_dim
+        self.nh = hidden_dim
+        self.nz = latent_dim
+        self.seq_len = seq_len
         self.bos_token = BOS_token
         self.eos_token = EOS_token
-        self.device = torch.device("cuda" if config["cuda"] else "cpu")
+        self.device = torch.device("cuda" if use_cuda else "cpu")
 
         # no padding when setting padding_idx to -1
         self.embed = nn.Embedding(
-            config['vocab_size'], config["VAE_LSTM_embed_dim"], padding_idx=-1)
+            vocab_size, self.ni, padding_idx=-1)
 
-        self.dropout_in = nn.Dropout(config["LSTM_decoder_dropout_in"])
-        self.dropout_out = nn.Dropout(config["LSTM_decoder_dropout_out"])
+        self.dropout_in = nn.Dropout(dropout_in)
+        self.dropout_out = nn.Dropout(dropout_out)
 
         # for initializing hidden state and cell
         self.trans_linear = nn.Linear(
-            config["VAE_latent_dim"], config["LSTM_decoder_hidden_dim"], bias=False)
+            self.nz, self.nh, bias=False)
 
         # concatenate z with input
-        self.lstm = nn.LSTM(input_size=config["VAE_LSTM_embed_dim"] + config["VAE_latent_dim"],
-                            hidden_size=config["LSTM_decoder_hidden_dim"],
+        self.lstm = nn.LSTM(input_size=self.ni + self.nz,
+                            hidden_size=self.nh,
                             num_layers=1,
                             batch_first=True)
 
         # prediction layer
         self.pred_linear = nn.Linear(
-            config["LSTM_decoder_hidden_dim"], config['vocab_size'], bias=False)
+            self.nh, vocab_size, bias=False)
 
-        vocab_mask = torch.ones(config['vocab_size'])
+        vocab_mask = torch.ones(vocab_size)
         # vocab_mask[vocab['[PAD]']] = 0
         self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
 
@@ -137,7 +138,7 @@ class LSTMDecoder(nn.Module):
         # Tensor to track if the decoding should continue for each batch item
         active_mask = torch.ones(
             batch_size, dtype=torch.bool, device=self.device)
-        while length_c <= self.seq_len+1 and active_mask.any():
+        while length_c <= self.seq_len and active_mask.any():
 
             # Embedding and concatenation
             word_embed = self.embed(decoder_input)
@@ -207,9 +208,9 @@ class LSTMDecoder(nn.Module):
         # (batch_size * n_sample * seq_len)
         loss = self.loss(output_logits.view(-1, output_logits.size(2)),
                          tgt)
-
         # (batch_size, n_sample)
-        return loss.view(batch_size, n_sample, -1).sum(-1)
+        loss = loss.view(batch_size, n_sample, -1).sum(-1)
+        return loss
 
     def log_probability(self, x, z):
         """Cross Entropy in the language case

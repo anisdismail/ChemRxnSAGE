@@ -45,6 +45,8 @@ parser.add_argument('--epochs', type=int, default=200,
                     help='number of training epochs')
 parser.add_argument('--seed', type=int, default=42,
                     help='random seed')
+parser.add_argument("--data_ref_path", type=str,
+                    default='train_ref_dataset.csv')
 
 # LSTM
 parser.add_argument('--LSTM_lr', type=float, default=1e-3, metavar='LR',
@@ -81,6 +83,8 @@ parser.add_argument("--max_decay", type=int, default=5)
 parser.add_argument("--VAE_n_training_samples", type=int, default=1)
 parser.add_argument("--VAE_LSTM_embed_dim", type=int, default=512)
 parser.add_argument("--VAE_latent_dim", type=int, default=32)
+parser.add_argument("--cyclical_annealing", type=int, default=0)
+parser.add_argument("--number_of_cycles", type=int, default=5)
 
 
 # Parse the arguments
@@ -96,21 +100,24 @@ else:
     parser.print_help()
     sys.exit(1)
 
-
 # set up logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[logging.FileHandler(config["log_path"]),
                               logging.StreamHandler()])
 
-config["cuda"] = not config["no_cuda"] and torch.cuda.is_available()
+config["cuda"] = config["cuda"] and torch.cuda.is_available()
 
 logging.info(json.dumps(config, indent=4))
 
 # fix seeds
 torch.manual_seed(config["seed"])
+torch.use_deterministic_algorithms(True)
 np.random.seed(config["seed"])
 random.seed(config["seed"])
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
+# os.environ['PYTHON_SEED'] = config["seed"]
+# os.environ['PYTHON_CUDA'] = config["cuda"]
 
 if config["cuda"]:
     logging.info("Using Cuda")

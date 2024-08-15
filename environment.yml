@@ -10,7 +10,10 @@ dependencies:
   - scikit-learn==1.2.2
   - pip==23.1.2
   - pytorch==1.11
+  - SciencePlots
+  - seaborn==0.13.2
   - pip:
     - plotly==5.15.0
     - sentencepiece
     - ipykernel
+    - vendi_score==0.0.3
