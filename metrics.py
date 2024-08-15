@@ -3,12 +3,13 @@ import pandas as pd
 import numpy as np
 import logging
 
+from vendi_score import vendi
 from rdkit.Chem import rdChemReactions
 from rdkit import Chem
 from rdkit import RDLogger
+from sklearn.metrics import pairwise_distances
 
-from scipy.spatial.distance import cdist, jensenshannon
-
+from scipy.spatial.distance import cdist, jensenshannon, pdist, squareform
 from utils import get_atoms, rxn_to_chain_ids, rxn_to_ring_ids, get_PO_bonds
 
 lg = RDLogger.logger()
@@ -17,8 +18,8 @@ lg.setLevel(RDLogger.CRITICAL)
 
 def similarity(fps, centroids, metric):
     if len(fps) > 0:
-        sims = cdist(fps, centroids, metric)
-        return 1-np.mean(np.min(sims, axis=1)), np.min(sims, axis=1)
+        dists = cdist(fps, centroids, metric)
+        return 1-np.mean(np.min(dists, axis=1)), 1-np.min(dists, axis=1)
     return 0, 0
 
 
@@ -275,3 +276,89 @@ def JSD_with_train(rxn_pred):
         return 1-(jensenshannon(train_dist_arr, rxn_pred_dist_arr)**2)
     else:
         return 0
+
+
+"""
+Percentage of Exact Matches in Dataset
+"""
+
+
+def exact_matches_percentage(df_gen_valid, df_ref):
+    ref_set = set(df_ref['Reactant_Product_Frozenset'])
+
+    # Check if each frozenset in df_gen_valid exists in max_200_set
+    df_gen_valid['Exists_In_Max_200'] = df_gen_valid['Reactant_Product_Frozenset'].apply(
+        lambda x: x in ref_set)
+    perc_exac_matches = df_gen_valid['Exists_In_Max_200'].sum(
+    ) / len(df_gen_valid['Exists_In_Max_200'])
+    return perc_exac_matches
+
+
+"""
+Percentage of Duplicate Reactions in Generated Dataset
+"""
+
+
+def percentage_duplicates(df_gen_valid):
+   # Calculate the value counts of 'Reactant_Product_Frozenset' in the dataframe
+    frozenset_counts = df_gen_valid['Reactant_Product_Frozenset'].value_counts(
+    )
+    # Filter for frozensets that appear more than once
+    frequent_frozensets = frozenset_counts[frozenset_counts > 1]
+
+    # Calculate the sum of these frequent frozensets
+    sum_frequent_frozensets = frequent_frozensets.sum()
+
+    # Calculate the proportion of frequent frozensets to total rows
+    perc_duplicates = sum_frequent_frozensets / \
+        len(df_gen_valid['Exists_In_Max_200'])
+
+    return perc_duplicates
+
+
+"""
+Dataset Diversity using Vendi score
+from https://github.com/vertaix/Vendi-Score
+We recommend pairing sample quality metrics with a Vendi score of small
+order (q ∈ [0.1,0.5]) for diversity and the Vendi score of infinite order for
+duplication and memorization.
+"""
+
+
+def calculate_dataset_diversity(gen_fingerprints):
+
+    X_sims = 1-squareform(pdist(gen_fingerprints, metric='jaccard'))
+    upper_tri_indices = np.triu_indices_from(X_sims, k=1)
+    average_inter_similarity = np.mean(X_sims[upper_tri_indices])
+    vendi_score_k = vendi.score_K(X_sims)
+    vendi_score_k_inf = vendi.score_K(X_sims, q="inf")
+    vendi_score_k_small = vendi.score_K(X_sims, q=0.1)
+
+    return vendi_score_k, vendi_score_k_inf, vendi_score_k_small, average_inter_similarity
+
+
+"""
+Vendi for Score for Every Predicted Class
+"""
+
+
+def calculate_diversity_per_class(rxn_pred, gen_fingerprints):
+    rxn_pred_arr = np.array(rxn_pred)
+    results = []
+    for i in np.unique(rxn_pred_arr):
+        # Select fingerprints corresponding to the current class
+        select_fingerprints = gen_fingerprints[np.where(rxn_pred_arr == i)]
+
+        # Calculate diversity for the selected fingerprints
+        diversity = calculate_dataset_diversity(select_fingerprints)
+
+        # Append the results (label, count, first diversity score, last diversity score)
+        results.append({
+            'label': i,
+            'count': len(select_fingerprints),
+            'VS': diversity[0],
+            'AvgInterSim': diversity[-1]
+        })
+    results_df = pd.DataFrame(results)
+    results_df["VS_norm"] = results_df["VS"]/results_df["count"]
+    return results_df

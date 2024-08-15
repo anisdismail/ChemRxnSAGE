@@ -10,7 +10,7 @@ from models.VAE.VAE import VAE
 from models.VAE.LSTM_Decoder import LSTMDecoder
 from models.VAE.LSTM_Encoder import LSTMEncoder
 from dataloader import DataIterator
-from eval import generate_metrics_evaluation
+from eval import Evaluator
 import sentencepiece as spm
 import logging
 
@@ -44,7 +44,10 @@ class LSTMLMTrainer:
                                  hidden_dim=config['LSTM_hidden_dim'], num_layers=config['LSTM_num_layers'],
                                  use_cuda=config['cuda'], dropout_prob=config['LSTM_dropout_prob'],
                                  BOS_TOKEN=self.BOS_TOKEN, EOS_TOKEN=self.EOS_TOKEN)
-
+        self.evaluator = Evaluator(config)
+        if self.config["load_path"]:
+            self.generator.load_state_dict(
+                torch.load(self.config["load_path"]))
         self.nll_loss = nn.NLLLoss()
         self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
         self.generator = self.generator.to(self.device)
@@ -61,20 +64,73 @@ class LSTMLMTrainer:
         for i in range(0, self.config["epochs"]):
             train_loss = self.train_mle()
             val_loss = self.eval_nll(self.eval_iter)
-            logging.info("generating...")
-            self.generate_samples()
-            logging.info("evaluating...")
-            jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
-                self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
             logging.info(
                 f"Epoch {i}, Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}")
-            logging.info(
-                f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
+            self.generate_and_evaluate()
             torch.save(self.generator.state_dict(), os.path.join(
-                self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}_val{valid:.4f}.pt"))
+                self.config["save_path"], f"lstm_epoch{i}_loss{val_loss:.4f}.pt"))
 
         logging.info(
             '#####################################################\n\n')
+
+    def generate_and_evaluate(self):
+        # Initialize metrics dictionary
+        metrics = {
+            "JSD": [],
+            "Similarity": [],
+            "String Similarity": [],
+            "Validity": [],
+            "Exact Matches Percentage": [],
+            "Duplicates Percentage": [],
+            "Average Inter Similarity": [],
+            "Overall Validity": [],
+            "Vendi Score": [],
+            "Vendi Score (q=0.1)": [],
+            "Vendi Score (q=inf)": [],
+            "Avg Vendi Score Per Class": []
+        }
+
+        seeds = [42, 0, 250, 1000, 350]
+
+        for seed in seeds:
+            self.generate_samples(seed=seed)
+            self.evaluator.generate_metrics_evaluation(self.generated_path)
+            metrics["JSD"].append(self.evaluator.results["jsd"])
+            metrics["Similarity"].append(
+                self.evaluator.results["avg_similarity"])
+            metrics["String Similarity"].append(
+                self.evaluator.results["avg_str_similarity"])
+            metrics["Validity"].append(self.evaluator.results["valid"])
+            metrics["Exact Matches Percentage"].append(
+                self.evaluator.results["exact_perc"])
+            metrics["Duplicates Percentage"].append(
+                self.evaluator.results["duplicates_perc"])
+            metrics["Average Inter Similarity"].append(
+                self.evaluator.results["average_inter_similarity"])
+            metrics["Overall Validity"].append(
+                self.evaluator.results["validated"])
+            metrics["Vendi Score"].append(
+                self.evaluator.results["vendi_score_k"])
+            metrics["Vendi Score (q=0.1)"].append(
+                self.evaluator.results["vendi_score_k_small"])
+            metrics["Vendi Score (q=inf)"].append(
+                self.evaluator.results["vendi_score_k_inf"])
+            metrics["Avg Vendi Score Per Class"].append(
+                self.evaluator.results["avg_vs_score_per_class"])
+
+            # Print the results for the current seed
+            logging.info(f"""Seed {seed}: JSD={self.evaluator.results['jsd']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f},
+                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f},
+                VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
+
+        # Print summary statistics
+        logging.info("\nSummary Statistics:")
+        logging.info(
+            f"{'Metric':<25} {'Avg':<8} {'Std':<8} {'Min':<8} {'Max':<8}")
+
+        for metric, values in metrics.items():
+            logging.info(
+                f"{metric:<25} {np.mean(values):<8.4f} {np.std(values):<8.4f} {np.min(values):<8.4f} {np.max(values):<8.4f}")
 
     def train_mle(self):
         """
@@ -109,16 +165,20 @@ class LSTMLMTrainer:
                 loss = self.nll_loss(pred, target)
                 total_loss += loss.item()
         avg_loss = total_loss / len(data_iter)
-        logging.info('val loss:', avg_loss)
+        logging.info(f'val loss: {avg_loss: .4f}')
         data_iter.reset()
         return avg_loss
 
-    def generate_samples(self):
+    def generate_samples(self, seed=42):
         self.generator.eval()
         samples = []
+        if self.config["cuda"]:
+            rng = torch.cuda.manual_seed(seed)
+        else:
+            rng = torch.manual_seed(seed)
         for _ in range(int(self.config["n_gen_samples"] / self.config["batch_size"])):
             sample = self.generator.sample(batch_size=self.config["batch_size"],
-                                           seq_len=self.config["seq_len"]).cpu().tolist()
+                                           seq_len=self.config["seq_len"], generator=rng).cpu().tolist()
             samples.extend(sample)
         with open(self.generated_path, 'w', encoding="utf-8") as fout:
             lines_to_write = [
@@ -129,13 +189,13 @@ class LSTMLMTrainer:
 class VAETrainer:
     def __init__(self, config):
         self.config = config
-        self.train_path = os.path.join(config["train_path"])
-        self.val_path = os.path.join(config["val_path"])
-        self.generated_path = os.path.join(config["gene_path"])
+        self.train_path = os.path.join(self.config["train_path"])
+        self.val_path = os.path.join(self.config["val_path"])
+        self.generated_path = os.path.join(self.config["gene_path"])
 
-        with open(os.path.join(config["main_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(self.config["main_dir"], "train", "centroids_200.data"), "r", encoding='utf-8') as f:
             self.centroids = np.loadtxt(f)
-        with open(os.path.join(config["main_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
+        with open(os.path.join(self.config["main_dir"], "train", "centroids_strings_200.data"), "r", encoding='utf-8') as f:
             self.centroids_strings = np.loadtxt(f)
 
         spm.SentencePieceTrainer.train(
@@ -154,18 +214,28 @@ class VAETrainer:
         emb_init = uniform_initializer(0.1)
 
         self.encoder = LSTMEncoder(
-            config=self.config, vocab_size=config["vocab_size"],
-            model_init=model_init, emb_init=emb_init)
+            vocab_size=self.config["vocab_size"],
+            model_init=model_init, emb_init=emb_init, embed_dim=self.config["VAE_LSTM_embed_dim"],
+            hidden_dim=self.config["LSTM_encoder_hidden_dim"],
+            latent_dim=self.config["VAE_latent_dim"], use_cuda=self.config["cuda"])
         self.decoder = LSTMDecoder(
-            config=self.config, model_init=model_init, emb_init=emb_init,
-            BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN)
+            model_init=model_init, emb_init=emb_init,
+            BOS_token=self.BOS_TOKEN, EOS_token=self.EOS_TOKEN, embed_dim=self.config[
+                "VAE_LSTM_embed_dim"], hidden_dim=self.config["LSTM_decoder_hidden_dim"],
+            latent_dim=self.config["VAE_latent_dim"], use_cuda=self.config["cuda"],
+            seq_len=self.config["seq_len"], vocab_size=self.config["vocab_size"],
+            dropout_in=self.config["LSTM_decoder_dropout_in"],
+            dropout_out=self.config["LSTM_decoder_dropout_out"])
         self.vae = VAE(encoder=self.encoder, decoder=self.decoder,
-                       config=self.config).to(self.device)
-
+                       latent_dim=self.config["VAE_latent_dim"],
+                       use_cuda=self.config["cuda"]).to(self.device)
+        if self.config["load_path"]:
+            self.vae.load_state_dict(torch.load(self.config["load_path"]))
         self.enc_optimizer = optim.SGD(self.vae.encoder.parameters(),
                                        lr=1.0, momentum=self.config["momentum"])
         self.dec_optimizer = optim.SGD(self.vae.decoder.parameters(),
                                        lr=1.0, momentum=self.config["momentum"])
+        self.evaluator = Evaluator(config)
 
     def eval_nll(self,  data_iter):
         self.vae.eval()
@@ -176,8 +246,6 @@ class VAETrainer:
             for data, target in data_iter:
                 data, target = data.to(self.device), target.to(self.device)
                 batch_size, sent_len = data.size()
-                report_num_sents += batch_size
-                report_num_words += (sent_len - 1) * batch_size
 
                 # not predict start symbol
                 report_num_words += (sent_len - 1) * batch_size
@@ -239,7 +307,7 @@ class VAETrainer:
 
                 # Monitor mutual information (MI) during aggressive training
                 if self.config["aggressive"]:
-                    self.monitor_mutual_information(pre_mi)
+                    pre_mi = self.monitor_mutual_information(pre_mi)
 
             # Report and log training progress
             train_loss = (
@@ -257,18 +325,73 @@ class VAETrainer:
                 best_metrics=best_metrics, decay_cnt=decay_cnt, epoch=epoch)
 
             # Generate samples and evaluate them
-            self.generate_samples()
-            jsd, avg_similarity, avg_str_similarity, valid, filter0, filter2, filter4, filter5, df, rxn_pred, sims, gen_fingerprints = generate_metrics_evaluation(
-                self.generated_path, self.centroids, self.centroids_strings, self.tokenizer, self.config)
-            logging.info(
-                f"JSD: {jsd:.5f}, Similarity: {avg_similarity:.5f}, String Similarity: {avg_str_similarity:.5f}, Validity: {valid:.5f}\n")
+            self.generate_and_evaluate()
 
             if decay_cnt == self.config["max_decay"]:
                 break
 
             self.train_iter.reset()
             torch.save(self.vae.state_dict(), os.path.join(
-                self.config["save_path"], f"vae_epoch{epoch}_aggressive{self.config['aggressive']}_loss{eval_metrics['loss']:.4f}_val{valid:.4f}.pt"))
+                self.config["save_path"], f"vae_epoch{epoch}_kl{self.config['kl_start']}_warm_up{self.config['warm_up']}_aggressive{self.config['aggressive']}_loss{eval_metrics['loss']:.4f}.pt"))
+
+    def generate_and_evaluate(self):
+        # Initialize metrics dictionary
+        metrics = {
+            "JSD": [],
+            "Similarity": [],
+            "String Similarity": [],
+            "Validity": [],
+            "Exact Matches Percentage": [],
+            "Duplicates Percentage": [],
+            "Average Inter Similarity": [],
+            "Overall Validity": [],
+            "Vendi Score": [],
+            "Vendi Score (q=0.1)": [],
+            "Vendi Score (q=inf)": [],
+            "Avg Vendi Score Per Class": []
+        }
+
+        seeds = [42, 0, 250, 1000, 350]
+
+        for seed in seeds:
+            self.generate_samples(seed=seed)
+            self.evaluator.generate_metrics_evaluation(self.generated_path)
+            metrics["JSD"].append(self.evaluator.results["jsd"])
+            metrics["Similarity"].append(
+                self.evaluator.results["avg_similarity"])
+            metrics["String Similarity"].append(
+                self.evaluator.results["avg_str_similarity"])
+            metrics["Validity"].append(self.evaluator.results["valid"])
+            metrics["Exact Matches Percentage"].append(
+                self.evaluator.results["exact_perc"])
+            metrics["Duplicates Percentage"].append(
+                self.evaluator.results["duplicates_perc"])
+            metrics["Average Inter Similarity"].append(
+                self.evaluator.results["average_inter_similarity"])
+            metrics["Overall Validity"].append(
+                self.evaluator.results["validated"])
+            metrics["Vendi Score"].append(
+                self.evaluator.results["vendi_score_k"])
+            metrics["Vendi Score (q=0.1)"].append(
+                self.evaluator.results["vendi_score_k_small"])
+            metrics["Vendi Score (q=inf)"].append(
+                self.evaluator.results["vendi_score_k_inf"])
+            metrics["Avg Vendi Score Per Class"].append(
+                self.evaluator.results["avg_vs_score_per_class"])
+
+            # Print the results for the current seed
+            logging.info(f"""Seed {seed}: JSD={self.evaluator.results['jsd']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f}, 
+                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f}, 
+                VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
+
+        # Print summary statistics
+        logging.info("\nSummary Statistics:")
+        logging.info(
+            f"{'Metric':<25} {'Avg':<8} {'Std':<8} {'Min':<8} {'Max':<8}")
+
+        for metric, values in metrics.items():
+            logging.info(
+                f"{metric:<25} {np.mean(values):<8.4f} {np.std(values):<8.4f} {np.min(values):<8.4f} {np.max(values):<8.4f}")
 
     def perform_aggressive_training(self, data):
         sub_iter = 1
@@ -332,18 +455,18 @@ class VAETrainer:
 
     def monitor_mutual_information(self, pre_mi):
         self.vae.eval()
-        cur_mi = self.vae.calc_mi(data_loader=self.eval_iter)
+        cur_mi = self.vae.calc_mi_oneshot(data_loader=self.eval_iter)
         self.vae.train()
         logging.info(f"pre mi: {pre_mi:.4f}. cur mi: {cur_mi:.4f}")
         if cur_mi - pre_mi < 0:
             self.config["aggressive"] = False
             logging.info("STOP BURNING")
-        pre_mi = cur_mi
+        return cur_mi
 
     def evaluate(self):
         self.vae.eval()
         with torch.no_grad():
-            mi = self.vae.calc_mi(data_loader=self.eval_iter)
+            mi = self.vae.calc_mi_oneshot(data_loader=self.eval_iter)
             au, _ = self.vae.calc_au(data_loader=self.eval_iter)
             loss, nll, kl, ppl = self.eval_nll(self.eval_iter)
 
@@ -373,13 +496,34 @@ class VAETrainer:
             opt_dict.update(
                 {"best_loss": eval_metrics["loss"], "not_improved": 0})
 
-    def generate_samples(self):
+    def generate_samples(self, seed=42):
         self.vae.eval()
-        logging.info('begin decoding..................................')
+        if self.config["cuda"]:
+            rng = torch.cuda.manual_seed(seed)
+        else:
+            rng = torch.manual_seed(seed)
         with torch.no_grad():
-            self.vae.sample_from_prior(nsamples=self.config["n_gen_samples"],
-                                       strategy="sample",
-                                       fname=self.generated_path)
+            self.vae.sample_from_prior(self.config["n_gen_samples"],
+                                       "sample",
+                                       self.generated_path, generator=rng)
+
+    def cyclical_annealing(T, M, step, R=0.4, max_kl_weight=1):
+        """
+        Implementing: <https://arxiv.org/abs/1903.10145>
+        T = Total steps 
+        M = Number of cycles 
+        R = Proportion used to increase beta
+        t = Global step 
+        """
+        period = (T/M)  # N_iters/N_cycles
+        # Itteration_number/(Global Period)
+        internal_period = (step) % (period)
+        tau = internal_period/period
+        if tau > R:
+            tau = max_kl_weight
+        else:
+            tau = min(max_kl_weight, tau/R)  # Linear function
+        return tau
 
 
 class uniform_initializer(object):
