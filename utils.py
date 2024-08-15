@@ -9,9 +9,9 @@ lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 
 
-def load_rxn_classifier(config):
+def load_rxn_classifier(main_path):
     rxn_classifier = torch.load(os.path.join(
-        config["main_dir"], "final_nn_classifier.pth"))
+        main_path, "final_nn_classifier.pth"))
     rxn_classifier.eval()
     return rxn_classifier
 
@@ -33,7 +33,8 @@ def predict_rxn_type(model, gen_fingerprints, batch_size=64):
 
         # Perform predictions for the batch
         outputs = model(batch_fingerprints)
-        y_pred_softmax = torch.log_softmax(outputs, dim=0)
+
+        y_pred_softmax = torch.log_softmax(outputs, dim=1)
         y_pred_tags = torch.argmax(y_pred_softmax, dim=1)
 
         rxn_pred.extend(y_pred_tags.cpu().numpy().tolist())
@@ -185,3 +186,18 @@ def convert_fingerprint(row):
     array = np.zeros((0,), dtype=np.int64)
     Chem.DataStructs.ConvertToNumpyArray(row["fingerprint"], array)
     return array
+
+
+def canoncalize_valid_rxns(df_gen):
+    df_gen_valid = df_gen[df_gen["validated"]].copy()
+    df_gen_valid[['reactants', 'products']
+                 ] = df_gen_valid['decoded_smiles'].str.split('>>', expand=True)
+    df_gen_valid["reactants"] = df_gen_valid['reactants'].str.split('.')
+    df_gen_valid["products"] = df_gen_valid['products'].str.split('.')
+    df_gen_valid["Canon_Reactants"] = df_gen_valid.reactants.apply(
+        lambda x: set([Chem.MolToSmiles(Chem.MolFromSmiles(mol), isomericSmiles=False) for mol in x]))
+    df_gen_valid["Canon_Products"] = df_gen_valid.products.apply(
+        lambda x: set([Chem.MolToSmiles(Chem.MolFromSmiles(mol), isomericSmiles=False) for mol in x]))
+    df_gen_valid['Reactant_Product_Frozenset'] = df_gen_valid.apply(
+        lambda row: (frozenset(row['Canon_Reactants']), frozenset(row['Canon_Products'])), axis=1)
+    return df_gen_valid
