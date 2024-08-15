@@ -9,7 +9,8 @@ Chem_data_generation_SeqGAN_2_layers_LSTM_v2.ipynb
 Chem_data_generation_VAE_v4.ipynb
 eval_old.py
 train_ref_dataset.csv
-resultsold/*
+results
+old/*
 Liu_Kheyer_Retrosynthesis_Data/*
 model_weights/*
 old_train.py
@@ -24,3 +25,4 @@ eval_old.py
 Chem_data_generation_SeqGAN_2_layers_LSTM_v2.ipynb
 Chem_data_generation_VAE_v4.ipynb
 rndforest_classifier.reg
+models/LSTM/__pycache__/LSTM_LM.cpython-39.pyc
