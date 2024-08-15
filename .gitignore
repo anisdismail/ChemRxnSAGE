@@ -5,3 +5,8 @@ old_train.py
 graph_utils.py
 __pycache__/*
 models/VAE/__pycache__/*
+Chem_data_generation_SeqGAN_2_layers_LSTM_v2.ipynb
+Chem_data_generation_VAE_v4.ipynb
+eval_old.py
+train_ref_dataset.csv
+results
