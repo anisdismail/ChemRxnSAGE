@@ -76,7 +76,7 @@ class LSTMLMTrainer:
     def generate_and_evaluate(self):
         # Initialize metrics dictionary
         metrics = {
-            "JSD": [],
+            "JSS": [],
             "Similarity": [],
             "String Similarity": [],
             "Validity": [],
@@ -95,7 +95,7 @@ class LSTMLMTrainer:
         for seed in seeds:
             self.generate_samples(seed=seed)
             self.evaluator.generate_metrics_evaluation(self.generated_path)
-            metrics["JSD"].append(self.evaluator.results["jsd"])
+            metrics["JSS"].append(self.evaluator.results["jss"])
             metrics["Similarity"].append(
                 self.evaluator.results["avg_similarity"])
             metrics["String Similarity"].append(
@@ -119,7 +119,7 @@ class LSTMLMTrainer:
                 self.evaluator.results["avg_vs_score_per_class"])
 
             # Print the results for the current seed
-            logging.info(f"""Seed {seed}: JSD={self.evaluator.results['jsd']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f},
+            logging.info(f"""Seed {seed}: JSS={self.evaluator.results['jss']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f},
                 DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f},
                 VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
 
@@ -337,7 +337,7 @@ class VAETrainer:
     def generate_and_evaluate(self):
         # Initialize metrics dictionary
         metrics = {
-            "JSD": [],
+            "JSS": [],
             "Similarity": [],
             "String Similarity": [],
             "Validity": [],
@@ -356,7 +356,7 @@ class VAETrainer:
         for seed in seeds:
             self.generate_samples(seed=seed)
             self.evaluator.generate_metrics_evaluation(self.generated_path)
-            metrics["JSD"].append(self.evaluator.results["jsd"])
+            metrics["JSS"].append(self.evaluator.results["jss"])
             metrics["Similarity"].append(
                 self.evaluator.results["avg_similarity"])
             metrics["String Similarity"].append(
@@ -380,7 +380,7 @@ class VAETrainer:
                 self.evaluator.results["avg_vs_score_per_class"])
 
             # Print the results for the current seed
-            logging.info(f"""Seed {seed}: JSD={self.evaluator.results['jsd']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f}, 
+            logging.info(f"""Seed {seed}: JSS={self.evaluator.results['jss']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f}, 
                 DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f}, 
                 VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
 

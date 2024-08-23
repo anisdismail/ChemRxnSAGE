@@ -7,7 +7,7 @@ import sentencepiece as spm
 from preprocessing import create_fingerprints, decode_ids_np
 from utils import load_rxn_classifier, predict_rxn_type, canoncalize_valid_rxns
 from metrics import (filter_0, filter_2, filter_4, filter_5, similarity, is_valid_rxn,
-                     JSD_with_train, exact_matches_percentage,
+                     JSS_with_train, exact_matches_percentage,
                      percentage_duplicates, calculate_dataset_diversity, calculate_diversity_per_class)
 pd.options.mode.use_inf_as_na = True
 
@@ -153,7 +153,7 @@ class Evaluator:
         self.results = {
             "avg_similarity": 0.0,
             "avg_str_similarity": 0.0,
-            "jsd": 0.0,
+            "jss": 0.0,
             "valid": 0.0,
             "filter0": 0.0,
             "filter2": 0.0,
@@ -178,7 +178,7 @@ class Evaluator:
                 self.gen_fingerprints, self.centroids, metric="jaccard")
             self.results["avg_str_similarity"], _ = similarity(
                 self.rxn_ids, self.centroids_strings, metric="cosine")
-            self.results["jsd"] = JSD_with_train(self.rxn_pred)
+            self.results["jss"] = JSS_with_train(self.rxn_pred)
             self.results["valid"], self.results["filter0"], self.results["filter2"], self.results[
                 "filter4"], self.results["filter5"], self.results["validated"] = self.validity_statistics()
             self.results["exact_perc"] = exact_matches_percentage(
@@ -236,11 +236,11 @@ class Evaluator:
         print(
             f"similarity (avg_str_similarity) took {avg_str_similarity_time:.4f} seconds")
 
-        # Timing JSD_with_train
+        # Timing JSS_with_train
         start_time = time.time()
-        self.results["jsd"] = JSD_with_train(self.rxn_pred)
-        jsd_time = time.time() - start_time
-        print(f"JSD_with_train took {jsd_time:.4f} seconds")
+        self.results["jss"] = JSS_with_train(self.rxn_pred)
+        jss_time = time.time() - start_time
+        print(f"JSS_with_train took {jss_time:.4f} seconds")
 
         # Timing validity_statistics
         start_time = time.time()
@@ -299,7 +299,7 @@ class Evaluator:
 
     def format_results(self):
         results_str = (
-            f"JSD={self.results['jsd']:.4f}, "
+            f"JSS={self.results['jss']:.4f}, "
             f"Sim={self.results['avg_similarity']:.4f}, "
             f"StrSim={self.results['avg_str_similarity']:.4f}, "
             f"Val={self.results['valid']:.4f},\n"

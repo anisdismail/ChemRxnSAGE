@@ -7,7 +7,6 @@ from vendi_score import vendi
 from rdkit.Chem import rdChemReactions
 from rdkit import Chem
 from rdkit import RDLogger
-from sklearn.metrics import pairwise_distances
 
 from scipy.spatial.distance import cdist, jensenshannon, pdist, squareform
 from utils import get_atoms, rxn_to_chain_ids, rxn_to_ring_ids, get_PO_bonds
@@ -258,7 +257,7 @@ Reaction Variety Metric
 """
 
 
-def JSD_with_train(rxn_pred):
+def JSS_with_train(rxn_pred):
     if len(rxn_pred) > 0:
         train_data_dist = {10: 0.004521721751729995, 1: 0.30223088261010767, 2: 0.23810237577756127, 3: 0.11269329735941443,
                            4: 0.017986959454395563, 5: 0.012990581828174573, 6: 0.16695395838017438, 7: 0.09160858377676184,
@@ -273,7 +272,7 @@ def JSD_with_train(rxn_pred):
                 if i not in rxn_pred_dist.keys():
                     rxn_pred_dist[i] = 0
         rxn_pred_dist_arr = [rxn_pred_dist[i] for i in range(1, 11)]
-        return 1-(jensenshannon(train_dist_arr, rxn_pred_dist_arr)**2)
+        return 1-jensenshannon(train_dist_arr, rxn_pred_dist_arr)
     else:
         return 0
 
