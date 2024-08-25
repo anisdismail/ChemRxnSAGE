@@ -333,7 +333,7 @@ def calculate_dataset_diversity(gen_fingerprints):
     vendi_score_k_inf = vendi.score_K(X_sims, q="inf")
     vendi_score_k_small = vendi.score_K(X_sims, q=0.1)
 
-    return vendi_score_k, vendi_score_k_inf, vendi_score_k_small, average_inter_similarity
+    return vendi_score_k, vendi_score_k_inf, vendi_score_k_small, 1-average_inter_similarity
 
 
 """

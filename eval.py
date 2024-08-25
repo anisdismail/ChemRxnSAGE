@@ -162,7 +162,7 @@ class Evaluator:
             "validated": 0.0,
             "exact_perc": 0.0,
             "duplicates_perc": 0.0,
-            "average_inter_similarity": 0.0,
+            "average_inter_dissimilarity": 0.0,
             "vendi_score_k": 0.0,
             "vendi_score_k_inf": 0.0,
             "vendi_score_k_small": 0.0,
@@ -185,7 +185,7 @@ class Evaluator:
                 self.valid_df, self.df_ref)
             self.results["duplicates_perc"] = percentage_duplicates(
                 self.valid_df)
-            vendi_score_k, vendi_score_k_inf, vendi_score_k_small,  self.results["average_inter_similarity"] = calculate_dataset_diversity(
+            vendi_score_k, vendi_score_k_inf, vendi_score_k_small,  self.results["average_inter_dissimilarity"] = calculate_dataset_diversity(
                 self.gen_fingerprints)
             self.results["vendi_score_k"], self.results["vendi_score_k_inf"], self.results["vendi_score_k_small"] = vendi_score_k / \
                 len(self.gen_fingerprints), vendi_score_k_inf / \
@@ -267,7 +267,7 @@ class Evaluator:
 
         # Timing calculate_dataset_diversity
         start_time = time.time()
-        vendi_score_k, vendi_score_k_inf, vendi_score_k_small, self.results["average_inter_similarity"] = calculate_dataset_diversity(
+        vendi_score_k, vendi_score_k_inf, vendi_score_k_small, self.results["average_inter_dissimilarity"] = calculate_dataset_diversity(
             self.gen_fingerprints)
         calculate_dataset_diversity_time = time.time() - start_time
         print(
@@ -305,7 +305,7 @@ class Evaluator:
             f"Val={self.results['valid']:.4f},\n"
             f"ExactMatchesPerc={self.results['exact_perc']:.4f}, "
             f"DuplicatesPerc={self.results['duplicates_perc']:.4f}, "
-            f"AvgInterSim={self.results['average_inter_similarity']:.4f}, "
+            f"IntDiv={self.results['average_inter_dissimilarity']:.4f}, "
             f"OverallVal={self.results['validated']:.4f},\n "
             f"VS={self.results['vendi_score_k']:.4f}, "
             f"VS(q=0.1)={self.results['vendi_score_k_small']:.4f}, "

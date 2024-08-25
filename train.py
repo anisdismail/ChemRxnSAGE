@@ -82,12 +82,12 @@ class LSTMLMTrainer:
             "Validity": [],
             "Exact Matches Percentage": [],
             "Duplicates Percentage": [],
-            "Average Inter Similarity": [],
+            "Average Inter Dissimilarity": [],
             "Overall Validity": [],
-            "Vendi Score": [],
-            "Vendi Score (q=0.1)": [],
-            "Vendi Score (q=inf)": [],
-            "Avg Vendi Score Per Class": []
+            "Normalized Vendi Score": [],
+            "Normalized Vendi Score (q=0.1)": [],
+            "Normalized Vendi Score (q=inf)": [],
+            "Avg Normalized Vendi Score Per Class": []
         }
 
         seeds = [42, 0, 250, 1000, 350]
@@ -105,23 +105,23 @@ class LSTMLMTrainer:
                 self.evaluator.results["exact_perc"])
             metrics["Duplicates Percentage"].append(
                 self.evaluator.results["duplicates_perc"])
-            metrics["Average Inter Similarity"].append(
-                self.evaluator.results["average_inter_similarity"])
+            metrics["Average Inter Dissimilarity"].append(
+                self.evaluator.results["average_inter_dissimilarity"])
             metrics["Overall Validity"].append(
                 self.evaluator.results["validated"])
-            metrics["Vendi Score"].append(
+            metrics["Normalized Vendi Score"].append(
                 self.evaluator.results["vendi_score_k"])
-            metrics["Vendi Score (q=0.1)"].append(
+            metrics["Normalized Vendi Score (q=0.1)"].append(
                 self.evaluator.results["vendi_score_k_small"])
-            metrics["Vendi Score (q=inf)"].append(
+            metrics["Normalized Vendi Score (q=inf)"].append(
                 self.evaluator.results["vendi_score_k_inf"])
-            metrics["Avg Vendi Score Per Class"].append(
+            metrics["Avg Normalized Vendi Score Per Class"].append(
                 self.evaluator.results["avg_vs_score_per_class"])
 
             # Print the results for the current seed
             logging.info(f"""Seed {seed}: JSS={self.evaluator.results['jss']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f},
-                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f},
-                VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
+                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, IntDiv={self.evaluator.results['average_inter_dissimilarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f},
+                NVS={self.evaluator.results['vendi_score_k']:.4f}, NVS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, NVS(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgNVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
 
         # Print summary statistics
         logging.info("\nSummary Statistics:")
@@ -343,12 +343,12 @@ class VAETrainer:
             "Validity": [],
             "Exact Matches Percentage": [],
             "Duplicates Percentage": [],
-            "Average Inter Similarity": [],
+            "Average Inter Dissimilarity": [],
             "Overall Validity": [],
-            "Vendi Score": [],
-            "Vendi Score (q=0.1)": [],
-            "Vendi Score (q=inf)": [],
-            "Avg Vendi Score Per Class": []
+            "Normalized Vendi Score": [],
+            "Normalized Vendi Score (q=0.1)": [],
+            "Normalized Vendi Score (q=inf)": [],
+            "Avg Normalized Vendi Score Per Class": []
         }
 
         seeds = [42, 0, 250, 1000, 350]
@@ -366,23 +366,23 @@ class VAETrainer:
                 self.evaluator.results["exact_perc"])
             metrics["Duplicates Percentage"].append(
                 self.evaluator.results["duplicates_perc"])
-            metrics["Average Inter Similarity"].append(
-                self.evaluator.results["average_inter_similarity"])
+            metrics["Average Inter Dissimilarity"].append(
+                self.evaluator.results["average_inter_dissimilarity"])
             metrics["Overall Validity"].append(
                 self.evaluator.results["validated"])
-            metrics["Vendi Score"].append(
+            metrics["Normalized Vendi Score"].append(
                 self.evaluator.results["vendi_score_k"])
-            metrics["Vendi Score (q=0.1)"].append(
+            metrics["Normalized Vendi Score (q=0.1)"].append(
                 self.evaluator.results["vendi_score_k_small"])
-            metrics["Vendi Score (q=inf)"].append(
+            metrics["Normalized Vendi Score (q=inf)"].append(
                 self.evaluator.results["vendi_score_k_inf"])
-            metrics["Avg Vendi Score Per Class"].append(
+            metrics["Avg Normalized Vendi Score Per Class"].append(
                 self.evaluator.results["avg_vs_score_per_class"])
 
             # Print the results for the current seed
             logging.info(f"""Seed {seed}: JSS={self.evaluator.results['jss']:.4f}, Sim={self.evaluator.results['avg_similarity']:.4f}, StrSim={self.evaluator.results['avg_str_similarity']:.4f}, Val={self.evaluator.results['valid']:.4f}, ExactMatchesPerc={self.evaluator.results['exact_perc']:.4f}, 
-                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, AvgInterSim={self.evaluator.results['average_inter_similarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f}, 
-                VS={self.evaluator.results['vendi_score_k']:.4f}, VS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, VD(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
+                DuplicatesPerc={self.evaluator.results['duplicates_perc']:.4f}, IntDiv={self.evaluator.results['average_inter_dissimilarity']:.4f}, OverallVal={self.evaluator.results['validated']:.4f}, 
+                NVS={self.evaluator.results['vendi_score_k']:.4f}, NVS(q=0.1)={self.evaluator.results['vendi_score_k_small']:.4f}, NVS(q=inf)={self.evaluator.results['vendi_score_k_inf']:.4f}, AvgNVSPerClass={self.evaluator.results['avg_vs_score_per_class']:.4f}""")
 
         # Print summary statistics
         logging.info("\nSummary Statistics:")
