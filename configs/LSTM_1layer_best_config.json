@@ -7,7 +7,7 @@
         "data_ref_path": "train_ref_dataset.csv",
         "gene_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v2/gene.data",
         "log_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v2/train.log",
-        "load_path": "model_weights/synthesizer/reproduced/v2/lstm_epoch192_loss0.2721.pt",
+        "load_path": "model_weights/synthesizer/reproduced/v2/lstm_epoch167_loss0.2730.pt",
         "model": "LSTM",
         "mode": "generate",
         "seed": 42,
