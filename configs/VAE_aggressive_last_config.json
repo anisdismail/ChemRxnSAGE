@@ -7,7 +7,7 @@
         "data_ref_path": "train_ref_dataset.csv",
         "gene_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v4.2/gene.data",
         "log_path": "Liu_Kheyer_Retrosynthesis_Data/reproduced/v4.2/train.log",
-        "load_path": "model_weights/synthesizer/reproduced/v4.2/vae_epoch68_kl1_warm_up10_aggressiveFalse_loss49.7707.pt",
+        "load_path": "model_weights/synthesizer/reproduced/v4.2/vae_epoch63_kl1_warm_up10_aggressiveFalse_loss49.7192.pt",
         "model": "VAE",
         "mode": "generate",
         "seed": 42,

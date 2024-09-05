@@ -17,3 +17,4 @@ dependencies:
     - sentencepiece
     - ipykernel
     - vendi_score==0.0.3
+    - statsmodels==0.14.2
