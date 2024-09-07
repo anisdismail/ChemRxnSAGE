@@ -48,7 +48,7 @@ def create_fingerprints(df, tokenizer, use_filters, seq_len):
         return df, np.stack(fingerprints), np.stack(rxn_ids)
     return df, fingerprints, rxn_ids
 
-
+#buggy method - retired
 def decode_ids_np(sequence, tokenizer):
     decoded = tokenizer.decode_ids(sequence.astype(int).tolist())
     for token in ["[PAD]", "[EOS]", "[BOS]", " ⁇ ", "⁇", " "]:

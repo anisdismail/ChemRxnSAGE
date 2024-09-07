@@ -57,8 +57,14 @@ class Evaluator:
     def process_results(self, use_filters=True):
         self.df = pd.DataFrame()
         # decode ids into smiles
-        self.df["decoded_smiles"] = np.apply_along_axis(
-            decode_ids_np, 1, self.gen_data, self.tokenizer)
+        # self.df["decoded_smiles"] = np.apply_along_axis(
+        #   decode_ids_np, 1, self.gen_data, self.tokenizer)
+        self.df["input_ids"] = [self.gen_data[i, :]
+                                for i in range(len(self.gen_data))]
+        self.df["decoded_smiles"] = self.df["input_ids"].apply(
+            lambda x: sp.decode_ids(x.astype(int).tolist()))
+        self.df["decoded_smiles"] = self.df["decoded_smiles"].str.replace("[PAD]", "").str.replace(
+            "[EOS]", "").str.replace("[BOS]", "").str.replace(" ", "").str.replace("⁇", "")
         # run the decoded smiles into the filters pipeline
         self.filters_pipeline()
         # transform the data into fingerprints

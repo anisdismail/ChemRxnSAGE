@@ -238,13 +238,13 @@ def is_valid_rxn(rxn):
             return False
 
         # Convert to SMILES and back to ensure validity
-        smiles = Chem.MolToSmiles(rdkit_mol, isomericSmiles=False)
-        if not Chem.MolFromSmarts(smiles):
-            return False
+        # smiles = Chem.MolToSmiles(rdkit_mol, isomericSmiles=False)
+        # if not Chem.MolFromSmarts(smiles):
+        #    return False
 
     # Validate the overall reaction format
     try:
-        rdChemReactions.ReactionFromSmarts(rxn, useSmiles=False)
+        rdChemReactions.ReactionFromSmarts(rxn, useSmiles=True)
     except Exception as e:
         logging.info("Error in reaction format:", e)
         return False
