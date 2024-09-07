@@ -48,8 +48,12 @@ def get_class_10_stats(rxn_pred):
     return rxn_pred_dist[0] if 0 in rxn_pred_dist.keys() else 0
 
 
+# def get_atoms(mol):
+#    atoms = [atom.GetSmarts().upper() for atom in mol.GetAtoms()]
+#    return atoms
+
 def get_atoms(mol):
-    atoms = [atom.GetSmarts().upper() for atom in mol.GetAtoms()]
+    atoms = [atom.GetSymbol() for atom in mol.GetAtoms()]
     return atoms
 
 

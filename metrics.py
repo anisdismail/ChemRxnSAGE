@@ -37,34 +37,34 @@ def filter_0(rxn):
     products = [mols[-1]]
 
     # Initialize lists to store atom types from reactants and products
-    reactant_atoms = []
-    product_atoms = []
+    reactant_atoms = set()
+    product_atoms = set()
     # Process reactants
     for mol in reactants:
         if mol:
             # Convert the molecule to a canonical SMILES string without isomeric information
-            smiles = Chem.MolToSmiles(
-                Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(smiles)
+            # smiles = Chem.MolToSmiles(
+            #    Chem.MolFromSmiles(mol), isomericSmiles=False)
+            # mol = Chem.MolFromSmiles(smiles)
+            mol = Chem.MolFromSmiles(mol)
 
             # Extract atoms from the molecule
-            atoms = get_atoms(mol)
-            reactant_atoms.extend(atoms)
+            reactant_atoms.update(set(get_atoms(mol)))
 
     # Process products
     for mol in products:
         if mol:
             # Convert the molecule to a canonical SMILES string without isomeric information
-            smiles = Chem.MolToSmiles(
-                Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(smiles)
+            # smiles = Chem.MolToSmiles(
+            #    Chem.MolFromSmiles(mol), isomericSmiles=False)
+            # mol = Chem.MolFromSmiles(smiles)
+            mol = Chem.MolFromSmiles(mol)
 
             # Extract atoms from the molecule
-            atoms = get_atoms(mol)
-            product_atoms.extend(atoms)
+            product_atoms.update(set(get_atoms(mol)))
 
     # Check if all product atoms are present in the reactant atoms
-    return set(product_atoms).issubset(set(reactant_atoms))
+    return product_atoms.issubset(reactant_atoms)
 
 
 """ 
