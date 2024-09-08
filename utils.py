@@ -95,7 +95,8 @@ def rxn_to_ring_ids(rxn):
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
             all_react += mol
-            mol = Chem.MolFromSmarts(mol)
+            mol = Chem.MolFromSmiles(mol)
+            #mol = Chem.MolFromSmarts(mol)
             ids, smiles = get_rings(mol)
             all_react_systems += smiles
             all_react_ids += ids
@@ -108,7 +109,8 @@ def rxn_to_ring_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(mol)
+            mol = Chem.MolFromSmiles(mol)
+            #mol = Chem.MolFromSmarts(mol)
             ids, smiles = get_rings(mol)
             prod_systems += smiles
             prod_ids += ids
@@ -116,7 +118,7 @@ def rxn_to_ring_ids(rxn):
     return all_react_ids, all_react_systems, prod_ids, prod_systems, list(all_react), react_id_2_smiles
 
 
-def get_chains(mol):
+"""def get_chains(mol):
     # get unique chains with no subchains
     hit_ats = []
     hit_ats_smiles = []
@@ -132,6 +134,31 @@ def get_chains(mol):
         hit_ats_smiles += ["".join(sorted([mol.GetAtomWithIdx(j).GetSmarts()
                                    for j in i])) for i in filtered]
     return hit_ats, hit_ats_smiles
+"""
+def get_chains(mol):
+    carbon_chains = []
+
+    def dfs(atom, visited, current_chain):
+        visited.add(atom.GetIdx())
+        current_chain.append(atom.GetIdx())
+
+        for neighbor in atom.GetNeighbors():
+            if neighbor.GetAtomicNum() == 6 and not neighbor.IsInRing() and neighbor.GetIdx() not in visited:
+                dfs(neighbor, visited, current_chain)
+
+    visited_atoms = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() == 6 and not atom.IsInRing():  # Carbon atom not in a ring
+            if atom.GetIdx() not in visited_atoms:
+                chain = []
+                dfs(atom, visited_atoms, chain)
+                carbon_chains.append(chain)
+    carbon_chain_smiles = ["".join([mol.GetAtomWithIdx(j).GetSymbol()
+                                   for j in i]) for i in carbon_chains]
+
+    return carbon_chains, carbon_chain_smiles
+
+
 
 
 def rxn_to_chain_ids(rxn):
@@ -148,7 +175,7 @@ def rxn_to_chain_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(mol)
+            mol = Chem.MolFromSmiles(mol)
             ids, smiles = get_chains(mol)
             all_react_systems += smiles
             all_react_ids += ids
@@ -156,7 +183,7 @@ def rxn_to_chain_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmarts(mol)
+            mol = Chem.MolFromSmiles(mol)
             ids, smiles = get_chains(mol)
             prod_systems += smiles
             prod_ids += ids
@@ -171,9 +198,24 @@ def is_chain_edge(edge, ids):
         return False
 
 
-def get_PO_bonds(mol):
+"""def get_PO_bonds(mol):
     patt = Chem.MolFromSmarts('PO')
     hit_ats = list(mol.GetSubstructMatches(patt))
+    return hit_ats
+"""
+
+
+def get_PO_bonds(mol):
+    hit_ats = {}
+
+    # Pattern for P-O single bond
+    patt_single = Chem.MolFromSmiles('PO')
+    hit_ats['single'] = list(mol.GetSubstructMatches(patt_single))
+
+    # Pattern for P=O double bond
+    patt_double = Chem.MolFromSmiles('P=O')
+    hit_ats['double'] = list(mol.GetSubstructMatches(patt_double))
+
     return hit_ats
 
 

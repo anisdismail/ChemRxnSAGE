@@ -133,7 +133,7 @@ def filter_2(rxn, thresh=0):
 • G) Transformations that lead to addition/missing carbon in a chain
   """
 
-
+"""
 def filter_4(rxn, thresh=0):
 
     all_react_ids, all_react_systems, prod_ids, prod_systems = rxn_to_chain_ids(
@@ -181,13 +181,61 @@ def filter_4(rxn, thresh=0):
     #  trans=return_Chain_trans(rxn,all_react_ids)
     #  breakage_perc=trans["Chain_Breakage"]/trans["Nb_Paths"]
     #  return True if breakage_perc<=thresh and prod_systems==all_react_systems else False
+"""
+
+def filter_4(rxn, thresh=0):
+
+    _, all_react_systems, _, prod_systems = rxn_to_chain_ids(
+        rxn)
+    new_chains = []
+    # make sure all chains in product exist in reactants
+    # else new chains will be checked later
+    for chain in prod_systems:
+        if chain in all_react_systems:
+            all_react_systems.remove(chain)
+        else:
+            new_chains.append(chain)
+    if len(new_chains) == 0:
+        return True
+    
+    # creating a chain is fine in product
+    for new_chain in new_chains:
+        found = False
+        new_chain = list(new_chain)
+        new_chain.sort()    
+        for i in range(len(all_react_systems)-1):
+            for j, el2 in enumerate(all_react_systems):
+                if i != j:
+                    el1 = all_react_systems[i]
+                    temp = all_react_systems[i] + all_react_systems[j]
+                    temp_list = list(temp)
+                    temp_list.sort()
+                    if (temp_list == new_chain):
+                        all_react_systems.remove(el1)
+                        all_react_systems.remove(el2)
+                        found = True
+                        break
+            if found:
+                break
+        # No valid pairing found
+        if not found:
+            return False
+
+    return True
+    # caveat: chain to ring formation is not allowed 
+
+    # TODO: faster graph edit path calculation to make sure no chain to ring formation is happening
+    # else:
+    #  trans=return_Chain_trans(rxn,all_react_ids)
+    #  breakage_perc=trans["Chain_Breakage"]/trans["Nb_Paths"]
+    #  return True if breakage_perc<=thresh and prod_systems==all_react_systems else False
 
 
 """
 Filter 5: P-O Bond Cleavage
 """
 
-
+"""
 def filter_5(rxn, thresh=0):
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if mol]
@@ -208,6 +256,48 @@ def filter_5(rxn, thresh=0):
         return False
     return True
    # TODO: faster graph edit path calculation to make sure no ring cleavage is happening
+   # else:
+   #   trans=return_PO_trans(rxn)
+   #   PO_breakage_perc=trans["PO_Breakage"]/trans["Nb_Paths"]
+   #   return True if PO_breakage_perc<=thresh else False
+"""
+
+
+def filter_5(rxn, thresh=0):
+    mols = re.split(r"[>>|.]", rxn)
+    react = [mol for mol in mols[:-1] if mol]
+    prod = mols[-1]
+    if not prod:
+        return False
+
+    react_PO_bonds_single, react_PO_bonds_double = [], []
+    for mol in react:
+        if mol:
+            mol = Chem.MolFromSmiles(mol)
+            PO_bonds = get_PO_bonds(mol)
+            react_PO_bonds_single += PO_bonds["single"]
+            react_PO_bonds_double += PO_bonds["double"]
+
+    prod = Chem.MolFromSmiles(prod)
+    PO_bonds = get_PO_bonds(prod)
+    prod_PO_bonds_single = PO_bonds["single"]
+    prod_PO_bonds_double = PO_bonds["double"]
+
+    total_react_PO_bonds = len(react_PO_bonds_single) + \
+        len(react_PO_bonds_double)
+    total_prod_PO_bonds = len(prod_PO_bonds_single) + len(prod_PO_bonds_double)
+
+    if (total_react_PO_bonds == total_prod_PO_bonds) and (len(prod_PO_bonds_double) >= len(react_PO_bonds_double)):
+        # caveat: make sure no P-O cleavage is happening then P-O bond forming (nb will stay same)
+        # caveat: what about when the cleavage remove the whole structure from the product
+        return True
+    else:
+        return False
+
+    # TODO: check if P-O substructures left the product as a whole while no cleavage
+    # check whether P or O are in the product still or not
+
+   # TODO: faster graph edit path calculation to make sure no P-O cleavage is happening then P-O bond forming same time
    # else:
    #   trans=return_PO_trans(rxn)
    #   PO_breakage_perc=trans["PO_Breakage"]/trans["Nb_Paths"]
