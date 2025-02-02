@@ -10,14 +10,14 @@
 <br />
 <p align="center">
  <!-- <img src="" alt="logo" align="center"> -->
-  <h3 align="center"> Automated Generation and Evaluation of Chemical Reactions</h3>
+  <h3 align="center">Becoming a ChemRxnSAGE: A Novel Framework for De Novo Chemical Reaction Generation and Evaluation</h3>
 
   <p align="center">
     <br />
     <br />
-    <a href="https://github.com/anisdismail/ChemRxnAIGen/issues">Report Bug</a>
+    <a href="https://github.com/anisdismail/ChemRxnSAGE/issues">Report Bug</a>
     ·
-    <a href="https://github.com/anisdismail/ChemRxnAIGen/pulls">Add Feature</a>
+    <a href="https://github.com/anisdismail/ChemRxnSAGE/pulls">Add Feature</a>
   </p>
 </p>
 
@@ -49,7 +49,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-![alt text](https://github.com/anisdismail/ChemRxnAIGen/blob/main/ChemRxnAIGen.png)
+![alt text](https://github.com/anisdismail/ChemRxnSAGE/blob/main/ChemRxnAIGen.png)
 
 
 <!-- GETTING STARTED -->
@@ -65,7 +65,7 @@ It is recommended to create a new virtual enviroment with [conda](https://www.an
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/anisdismail/ChemRxnAIGen
+   git clone https://github.com/anisdismail/ChemRxnSAGE
    ```
 2. Change to the project repositry
    ```sh
@@ -123,7 +123,7 @@ Distributed under the GPL-3 License. See `LICENSE` for more information.
 <!-- CONTACT -->
 ## Contact
 
-[Anis Ismail](https://linkedin.com/in/anisdimail) - anis[dot]ismail[at]student[dot]kuleuven[dot]be
+[Anis Ismail](https://linkedin.com/in/anisdimail) - anis[dot]ismail[at]kuleuven[dot]be
 
 
 
@@ -132,13 +132,13 @@ Distributed under the GPL-3 License. See `LICENSE` for more information.
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/anisdismail/ChemRxnAIGen.svg?style=for-the-badge
-[contributors-url]: https://github.com/anisdismail/ChemRxnAIGen/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/anisdismail/ChemRxnAIGen.svg?style=for-the-badge
-[forks-url]: https://github.com/anisdismail/ChemRxnAIGen/network/members
-[stars-shield]: https://img.shields.io/github/stars/anisdismail/ChemRxnAIGen.svg?style=for-the-badge
-[stars-url]: https://github.com/anisdismail/ChemRxnAIGen/stargazers
-[issues-shield]: https://img.shields.io/github/issues/anisdismail/ChemRxnAIGen.svg?style=for-the-badge
-[issues-url]: https://github.com/anisdismail/ChemRxnAIGen/issues
+[contributors-shield]: https://img.shields.io/github/contributors/anisdismail/ChemRxnSAGE.svg?style=for-the-badge
+[contributors-url]: https://github.com/anisdismail/ChemRxnSAGE/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/anisdismail/ChemRxnSAGE.svg?style=for-the-badge
+[forks-url]: https://github.com/anisdismail/ChemRxnSAGE/network/members
+[stars-shield]: https://img.shields.io/github/stars/anisdismail/ChemRxnSAGE.svg?style=for-the-badge
+[stars-url]: https://github.com/anisdismail/ChemRxnSAGE/stargazers
+[issues-shield]: https://img.shields.io/github/issues/anisdismail/ChemRxnSAGE.svg?style=for-the-badge
+[issues-url]: https://github.com/anisdismail/ChemRxnSAGE/issues
 [license-shield]: https://img.shields.io/badge/license-GPL--3.0--only-green?style=for-the-badge
-[license-url]: https://github.com/anisdismail/ChemRxnAIGen/LICENSE
+[license-url]: https://github.com/anisdismail/ChemRxnSAGE/LICENSE
