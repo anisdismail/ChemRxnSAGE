@@ -49,7 +49,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-![alt text](https://github.com/anisdismail/ChemRxnSAGE/blob/main/ChemRxnAIGen.png)
+![alt text](https://github.com/anisdismail/ChemRxnSAGE/blob/main/ChemRxnSAGE.png)
 
 The generation and evaluation of chemical reactions remain challenging, with limited comprehensive studies addressing these issues. We introduce the **Chem**ical Reaction (**Rxn**)
 **S**ystematic **A**ssessment of **G**eneration and **E**valuation (**ChemRxnSAGE**) framework, an **adaptable end-to-end approach** for evaluating the **quality**, **validity**, and **diversity** of **machine-generated
@@ -75,7 +75,7 @@ It is recommended to create a new virtual enviroment with [conda](https://www.an
    ```
 2. Change to the project repositry
    ```sh
-   cd ChemRxnAIGen
+   cd ChemRxnSAGE
    ```
 3. Run the following command to create a conda enviroment named chemgen_env with the necessary packages. Please note that it might take a few minutes for the environment to be created
    ```sh
