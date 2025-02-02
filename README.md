@@ -51,6 +51,12 @@
 
 ![alt text](https://github.com/anisdismail/ChemRxnSAGE/blob/main/ChemRxnAIGen.png)
 
+The generation and evaluation of chemical reactions remain challenging, with limited comprehensive studies addressing these issues. We introduce the **Chem**ical Reaction (**Rxn**)
+**S**ystematic **A**ssessment of **G**eneration and **E**valuation (**ChemRxnSAGE**) framework, an **adaptable end-to-end approach** for evaluating the **quality**, **validity**, and **diversity** of **machine-generated
+chemical reactions**. Combining automated validity filters with quality metrics and expert insights, ChemRxnSAGE systematically eliminates invalid reactions. We test its robustness
+using generative models, including Recurrent Neural Networks and Variational Autoencoders, followed by validation using a chemical ”Turing test” with domain experts. Additionally,
+we assess reaction feasibility through thermodynamic analysis and compare the generated reactions against existing literature to ensure relevance and novelty. By combining
+computational tools with expert-driven metrics, ChemRxnSAGE offers a comprehensive and exntendable solution that advances the state of chemical reaction generation and evaluation.
 
 <!-- GETTING STARTED -->
 ## Getting Started
