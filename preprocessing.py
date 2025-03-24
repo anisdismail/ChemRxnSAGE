@@ -13,7 +13,7 @@ def create_fingerprints(df, tokenizer, use_filters, seq_len):
     # only process filtered data
     df["validated"] = df["isValid"]
     if use_filters:
-        df["validated"] = df["isValid"] & df["Filter_0"] & df["Filter_2"] & df["Filter_4"] & df["Filter_5"]
+        df["validated"] = df["isValid"] & df["Filter_1"] & df["Filter_2"] & df["Filter_3"] & df["Filter_4"]
     if df["validated"].sum() == 0:
         logging.info("No Valid Reactions, exiting...")
         # sys.exit(0)

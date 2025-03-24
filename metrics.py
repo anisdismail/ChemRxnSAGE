@@ -1,15 +1,14 @@
-import re
-import pandas as pd
-import numpy as np
 import logging
+import re
 
-from vendi_score import vendi
+import numpy as np
+import pandas as pd
+from rdkit import Chem, RDLogger
 from rdkit.Chem import rdChemReactions
-from rdkit import Chem
-from rdkit import RDLogger
-
 from scipy.spatial.distance import cdist, jensenshannon, pdist, squareform
-from utils import get_atoms, rxn_to_chain_ids, rxn_to_ring_ids, get_PO_bonds
+from vendi_score import vendi
+
+from utils import get_atoms, get_PO_bonds, rxn_to_chain_ids, rxn_to_ring_ids
 
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
@@ -18,7 +17,7 @@ lg.setLevel(RDLogger.CRITICAL)
 def similarity(fps, centroids, metric):
     if len(fps) > 0:
         dists = cdist(fps, centroids, metric)
-        return 1-np.mean(np.min(dists, axis=1)), 1-np.min(dists, axis=1)
+        return 1 - np.mean(np.min(dists, axis=1)), 1 - np.min(dists, axis=1)
     return 0, 0
 
 
@@ -28,7 +27,7 @@ Make sure all elements used in product comes from reactants
 """
 
 
-def filter_0(rxn):
+def filter_1(rxn):
     # Split the reaction string into individual molecules
     mols = re.split(r"[>>|.]", rxn)
 
@@ -43,10 +42,8 @@ def filter_0(rxn):
     for mol in reactants:
         if mol:
             # Convert the molecule to a canonical SMILES string without isomeric information
-            # smiles = Chem.MolToSmiles(
-            #    Chem.MolFromSmiles(mol), isomericSmiles=False)
-            # mol = Chem.MolFromSmiles(smiles)
-            mol = Chem.MolFromSmiles(mol)
+            smiles = Chem.MolToSmiles(Chem.MolFromSmiles(mol), isomericSmiles=False)
+            mol = Chem.MolFromSmarts(smiles)
 
             # Extract atoms from the molecule
             reactant_atoms.update(set(get_atoms(mol)))
@@ -55,10 +52,8 @@ def filter_0(rxn):
     for mol in products:
         if mol:
             # Convert the molecule to a canonical SMILES string without isomeric information
-            # smiles = Chem.MolToSmiles(
-            #    Chem.MolFromSmiles(mol), isomericSmiles=False)
-            # mol = Chem.MolFromSmiles(smiles)
-            mol = Chem.MolFromSmiles(mol)
+            smiles = Chem.MolToSmiles(Chem.MolFromSmiles(mol), isomericSmiles=False)
+            mol = Chem.MolFromSmarts(smiles)
 
             # Extract atoms from the molecule
             product_atoms.update(set(get_atoms(mol)))
@@ -79,21 +74,21 @@ Filter 2: Illogical Ring Operations
 
 def filter_2(rxn, thresh=0):
     # logging.info(rxn)
-    all_react_ids, all_react_systems, prod_ids, prod_systems, react, react_dict = rxn_to_ring_ids(
-        rxn)
+    all_react_ids, all_react_systems, prod_ids, prod_systems, react, react_dict = (
+        rxn_to_ring_ids(rxn)
+    )
     deleted = {}
     new_rings = []
 
     for ids in all_react_ids:
         for id in ids:
-            if not id in deleted:
+            if id not in deleted:
                 deleted[id] = False
 
     # make sure all rings in product exist in reactants and new rings will be processed later
     for group in prod_systems:
         if sorted(group) in [sorted(el) for el in all_react_systems]:
-            index = [sorted(el)
-                     for el in all_react_systems].index(sorted(group))
+            index = [sorted(el) for el in all_react_systems].index(sorted(group))
             id_group = all_react_ids[index]
             for id in id_group:
                 if not deleted[id]:
@@ -112,8 +107,10 @@ def filter_2(rxn, thresh=0):
         return True
     else:
         for ring in new_rings:
-            ring = [el.replace(
-                "+", "").replace("-", "").replace("[", "").replace("]", "") for el in ring]
+            ring = [
+                el.replace("+", "").replace("-", "").replace("[", "").replace("]", "")
+                for el in ring
+            ]
             for atom in ring:
                 if atom in react:
                     react.remove(atom)
@@ -183,10 +180,9 @@ def filter_4(rxn, thresh=0):
     #  return True if breakage_perc<=thresh and prod_systems==all_react_systems else False
 """
 
-def filter_4(rxn, thresh=0):
 
-    _, all_react_systems, _, prod_systems = rxn_to_chain_ids(
-        rxn)
+def filter_3(rxn, thresh=0):
+    _, all_react_systems, _, prod_systems = rxn_to_chain_ids(rxn)
     new_chains = []
     # make sure all chains in product exist in reactants
     # else new chains will be checked later
@@ -197,20 +193,20 @@ def filter_4(rxn, thresh=0):
             new_chains.append(chain)
     if len(new_chains) == 0:
         return True
-    
+
     # creating a chain is fine in product
     for new_chain in new_chains:
         found = False
         new_chain = list(new_chain)
-        new_chain.sort()    
-        for i in range(len(all_react_systems)-1):
+        new_chain.sort()
+        for i in range(len(all_react_systems) - 1):
             for j, el2 in enumerate(all_react_systems):
                 if i != j:
                     el1 = all_react_systems[i]
                     temp = all_react_systems[i] + all_react_systems[j]
                     temp_list = list(temp)
                     temp_list.sort()
-                    if (temp_list == new_chain):
+                    if temp_list == new_chain:
                         all_react_systems.remove(el1)
                         all_react_systems.remove(el2)
                         found = True
@@ -222,7 +218,7 @@ def filter_4(rxn, thresh=0):
             return False
 
     return True
-    # caveat: chain to ring formation is not allowed 
+    # caveat: chain to ring formation is not allowed
 
     # TODO: faster graph edit path calculation to make sure no chain to ring formation is happening
     # else:
@@ -263,7 +259,7 @@ def filter_5(rxn, thresh=0):
 """
 
 
-def filter_5(rxn, thresh=0):
+def filter_4(rxn, thresh=0):
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if mol]
     prod = mols[-1]
@@ -273,21 +269,24 @@ def filter_5(rxn, thresh=0):
     react_PO_bonds_single, react_PO_bonds_double = [], []
     for mol in react:
         if mol:
-            mol = Chem.MolFromSmiles(mol)
+            smiles = Chem.MolToSmiles(Chem.MolFromSmiles(mol), isomericSmiles=False)
+            mol = Chem.MolFromSmarts(smiles)
             PO_bonds = get_PO_bonds(mol)
             react_PO_bonds_single += PO_bonds["single"]
             react_PO_bonds_double += PO_bonds["double"]
 
-    prod = Chem.MolFromSmiles(prod)
+    prod = Chem.MolToSmiles(Chem.MolFromSmiles(prod), isomericSmiles=False)
+    prod = Chem.MolFromSmarts(prod)
     PO_bonds = get_PO_bonds(prod)
     prod_PO_bonds_single = PO_bonds["single"]
     prod_PO_bonds_double = PO_bonds["double"]
 
-    total_react_PO_bonds = len(react_PO_bonds_single) + \
-        len(react_PO_bonds_double)
+    total_react_PO_bonds = len(react_PO_bonds_single) + len(react_PO_bonds_double)
     total_prod_PO_bonds = len(prod_PO_bonds_single) + len(prod_PO_bonds_double)
 
-    if (total_react_PO_bonds == total_prod_PO_bonds) and (len(prod_PO_bonds_double) >= len(react_PO_bonds_double)):
+    if (total_react_PO_bonds == total_prod_PO_bonds) and (
+        len(prod_PO_bonds_double) >= len(react_PO_bonds_double)
+    ):
         # caveat: make sure no P-O cleavage is happening then P-O bond forming (nb will stay same)
         # caveat: what about when the cleavage remove the whole structure from the product
         return True
@@ -297,11 +296,12 @@ def filter_5(rxn, thresh=0):
     # TODO: check if P-O substructures left the product as a whole while no cleavage
     # check whether P or O are in the product still or not
 
-   # TODO: faster graph edit path calculation to make sure no P-O cleavage is happening then P-O bond forming same time
-   # else:
-   #   trans=return_PO_trans(rxn)
-   #   PO_breakage_perc=trans["PO_Breakage"]/trans["Nb_Paths"]
-   #   return True if PO_breakage_perc<=thresh else False
+
+# TODO: faster graph edit path calculation to make sure no P-O cleavage is happening then P-O bond forming same time
+# else:
+#   trans=return_PO_trans(rxn)
+#   PO_breakage_perc=trans["PO_Breakage"]/trans["Nb_Paths"]
+#   return True if PO_breakage_perc<=thresh else False
 
 
 """
@@ -327,10 +327,10 @@ def is_valid_rxn(rxn):
         if not rdkit_mol:
             return False
 
-        # Convert to SMILES and back to ensure validity
-        # smiles = Chem.MolToSmiles(rdkit_mol, isomericSmiles=False)
-        # if not Chem.MolFromSmarts(smiles):
-        #    return False
+        # Convert to SMILES and back to SMARTS ensure validity
+        smiles = Chem.MolToSmiles(rdkit_mol, isomericSmiles=False)
+        if not Chem.MolFromSmarts(smiles):
+            return False
 
     # Validate the overall reaction format
     try:
@@ -349,60 +349,59 @@ Reaction Variety Metric
 
 def JSS_with_train(rxn_pred):
     if len(rxn_pred) > 0:
-        train_data_dist = {10: 0.004521721751729995, 1: 0.30223088261010767, 2: 0.23810237577756127, 3: 0.11269329735941443,
-                           4: 0.017986959454395563, 5: 0.012990581828174573, 6: 0.16695395838017438, 7: 0.09160858377676184,
-                           8: 0.01626320917334932, 9: 0.03664842988833096}
+        train_data_dist = {
+            10: 0.004521721751729995,
+            1: 0.30223088261010767,
+            2: 0.23810237577756127,
+            3: 0.11269329735941443,
+            4: 0.017986959454395563,
+            5: 0.012990581828174573,
+            6: 0.16695395838017438,
+            7: 0.09160858377676184,
+            8: 0.01626320917334932,
+            9: 0.03664842988833096,
+        }
         train_dist_arr = [train_data_dist[i] for i in range(1, 11)]
         rxn_pred = [10 if x == 0 else x for x in rxn_pred]
 
-        rxn_pred_dist = pd.Series(rxn_pred).value_counts(
-            normalize=True).to_dict()
+        rxn_pred_dist = pd.Series(rxn_pred).value_counts(normalize=True).to_dict()
         if len(rxn_pred_dist) < 10:
             for i in range(1, 11):
                 if i not in rxn_pred_dist.keys():
                     rxn_pred_dist[i] = 0
         rxn_pred_dist_arr = [rxn_pred_dist[i] for i in range(1, 11)]
-        return 1-jensenshannon(train_dist_arr, rxn_pred_dist_arr)
+        return 1 - jensenshannon(train_dist_arr, rxn_pred_dist_arr)
     else:
         return 0
 
 
 """
-Percentage of Exact Matches in Dataset
+Percentage of Novel Reactions in Dataset
 """
 
 
-def exact_matches_percentage(df_gen_valid, df_ref):
-    ref_set = set(df_ref['Reactant_Product_Frozenset'])
+def novelty_percentage(df_gen_valid, df_ref):
+    ref_set = set(df_ref["Reactant_Product_Frozenset"])
 
     # Check if each frozenset in df_gen_valid exists in max_200_set
-    df_gen_valid['Exists_In_Max_200'] = df_gen_valid['Reactant_Product_Frozenset'].apply(
-        lambda x: x in ref_set)
-    perc_exac_matches = df_gen_valid['Exists_In_Max_200'].sum(
-    ) / len(df_gen_valid['Exists_In_Max_200'])
-    return perc_exac_matches
-
-
-"""
-Percentage of Duplicate Reactions in Generated Dataset
-"""
-
-
-def percentage_duplicates(df_gen_valid):
-   # Calculate the value counts of 'Reactant_Product_Frozenset' in the dataframe
-    frozenset_counts = df_gen_valid['Reactant_Product_Frozenset'].value_counts(
+    df_gen_valid["Exists_In_Max_200"] = df_gen_valid[
+        "Reactant_Product_Frozenset"
+    ].apply(lambda x: x in ref_set)
+    perc_exac_matches = df_gen_valid["Exists_In_Max_200"].sum() / len(
+        df_gen_valid["Exists_In_Max_200"]
     )
-    # Filter for frozensets that appear more than once
-    frequent_frozensets = frozenset_counts[frozenset_counts > 1]
+    return 1 - perc_exac_matches
 
-    # Calculate the sum of these frequent frozensets
-    sum_frequent_frozensets = frequent_frozensets.sum()
 
-    # Calculate the proportion of frequent frozensets to total rows
-    perc_duplicates = sum_frequent_frozensets / \
-        len(df_gen_valid['Exists_In_Max_200'])
+"""
+Percentage of Unique Reactions in Generated Dataset
+"""
 
-    return perc_duplicates
+
+def unique_percentage(df_gen_valid):
+    return df_gen_valid["Reactant_Product_Frozenset"].nunique() / len(
+        df_gen_valid["Exists_In_Max_200"]
+    )
 
 
 """
@@ -415,15 +414,19 @@ duplication and memorization.
 
 
 def calculate_dataset_diversity(gen_fingerprints):
-
-    X_sims = 1-squareform(pdist(gen_fingerprints, metric='jaccard'))
+    X_sims = 1 - squareform(pdist(gen_fingerprints, metric="jaccard"))
     upper_tri_indices = np.triu_indices_from(X_sims, k=1)
     average_inter_similarity = np.mean(X_sims[upper_tri_indices])
     vendi_score_k = vendi.score_K(X_sims)
     vendi_score_k_inf = vendi.score_K(X_sims, q="inf")
     vendi_score_k_small = vendi.score_K(X_sims, q=0.1)
 
-    return vendi_score_k, vendi_score_k_inf, vendi_score_k_small, 1-average_inter_similarity
+    return (
+        vendi_score_k,
+        vendi_score_k_inf,
+        vendi_score_k_small,
+        1 - average_inter_similarity,
+    )
 
 
 """
@@ -442,12 +445,14 @@ def calculate_diversity_per_class(rxn_pred, gen_fingerprints):
         diversity = calculate_dataset_diversity(select_fingerprints)
 
         # Append the results (label, count, first diversity score, last diversity score)
-        results.append({
-            'label': i,
-            'count': len(select_fingerprints),
-            'VS': diversity[0],
-            'AvgInterSim': diversity[-1]
-        })
+        results.append(
+            {
+                "label": i,
+                "count": len(select_fingerprints),
+                "VS": diversity[0],
+                "AvgInterSim": diversity[-1],
+            }
+        )
     results_df = pd.DataFrame(results)
-    results_df["VS_norm"] = results_df["VS"]/results_df["count"]
+    results_df["VS_norm"] = results_df["VS"] / results_df["count"]
     return results_df

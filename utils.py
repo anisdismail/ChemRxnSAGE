@@ -95,8 +95,8 @@ def rxn_to_ring_ids(rxn):
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
             all_react += mol
-            mol = Chem.MolFromSmiles(mol)
-            #mol = Chem.MolFromSmarts(mol)
+            # mol = Chem.MolFromSmiles(mol)
+            mol = Chem.MolFromSmarts(mol)
             ids, smiles = get_rings(mol)
             all_react_systems += smiles
             all_react_ids += ids
@@ -109,8 +109,8 @@ def rxn_to_ring_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmiles(mol)
-            #mol = Chem.MolFromSmarts(mol)
+            # mol = Chem.MolFromSmiles(mol)
+            mol = Chem.MolFromSmarts(mol)
             ids, smiles = get_rings(mol)
             prod_systems += smiles
             prod_ids += ids
@@ -135,6 +135,8 @@ def rxn_to_ring_ids(rxn):
                                    for j in i])) for i in filtered]
     return hit_ats, hit_ats_smiles
 """
+
+
 def get_chains(mol):
     carbon_chains = []
 
@@ -159,8 +161,6 @@ def get_chains(mol):
     return carbon_chains, carbon_chain_smiles
 
 
-
-
 def rxn_to_chain_ids(rxn):
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if len(mol) >= 1]
@@ -175,7 +175,9 @@ def rxn_to_chain_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmiles(mol)
+            mol = Chem.MolFromSmarts(mol)
+            if mol is None:
+                print("Error!", rxn)
             ids, smiles = get_chains(mol)
             all_react_systems += smiles
             all_react_ids += ids
@@ -183,7 +185,9 @@ def rxn_to_chain_ids(rxn):
         if mol:
             mol = Chem.MolToSmiles(
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
-            mol = Chem.MolFromSmiles(mol)
+            mol = Chem.MolFromSmarts(mol)
+            if mol is None:
+                print("Error!", rxn)
             ids, smiles = get_chains(mol)
             prod_systems += smiles
             prod_ids += ids
