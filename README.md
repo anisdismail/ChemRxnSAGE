@@ -89,8 +89,8 @@ It is recommended to create a new virtual enviroment with [conda](https://www.an
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-### Running node2vec2rank in command line
-To run the node2vec2rank algorithm in command line, run the following command with a configuration file as input
+### Running in command line
+To run the algorithm in command line, run the following command with a configuration file as input
    ```sh
    python main.py --config config.json
    ```
