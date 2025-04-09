@@ -20,7 +20,7 @@
     <a href="https://github.com/anisdismail/ChemRxnSAGE/pulls">Add Feature</a>
   </p>
 </p>
-<p><b>Please note that the repo and documnentation is still under active development.</b></p>
+<p><b>Please note that the repo and documentation are still under active development.</b></p>
 
 <!-- TABLE OF CONTENTS -->
 <details open="open">
@@ -37,7 +37,6 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-      <li><a href="#practicalities">Practicalities</a></li>
     <li><a href="#contributing">Contributing</a></li>
    <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -56,16 +55,19 @@ The generation and evaluation of chemical reactions remain challenging, with lim
 chemical reactions**. Combining automated validity filters with quality metrics and expert insights, ChemRxnSAGE systematically eliminates invalid reactions. We test its robustness
 using generative models, including Recurrent Neural Networks and Variational Autoencoders, followed by validation using a chemical ”Turing test” with domain experts. Additionally,
 we assess reaction feasibility through thermodynamic analysis and compare the generated reactions against existing literature to ensure relevance and novelty. By combining
-computational tools with expert-driven metrics, ChemRxnSAGE offers a comprehensive and exntendable solution that advances the state of chemical reaction generation and evaluation.
+computational tools with expert-driven metrics, ChemRxnSAGE offers a comprehensive and extendable solution that advances the state of chemical reaction generation and evaluation.
 
 <!-- GETTING STARTED -->
 ## Getting Started
 
-To get a local copy up and running follow steps below.
+To get a local copy up and running follow the steps below.
 
 ### Prerequisites
 
-It is recommended to create a new virtual enviroment with [conda](https://www.anaconda.com/).
+It is recommended to create a new virtual environment with [conda](https://www.anaconda.com/).
+
+
+Training and evaluation data are available [here](https://drive.google.com/drive/folders/1-314k6YASzLk5l3bQ2PEsRxmQ4PMlI_t?usp=sharing)
 
 ### Installation
 
@@ -73,11 +75,11 @@ It is recommended to create a new virtual enviroment with [conda](https://www.an
    ```sh
    git clone https://github.com/anisdismail/ChemRxnSAGE
    ```
-2. Change to the project repositry
+2. Change to the project repository
    ```sh
    cd ChemRxnSAGE
    ```
-3. Run the following command to create a conda enviroment named chemgen_env with the necessary packages. Please note that it might take a few minutes for the environment to be created
+3. Run the following command to create a conda environment named chemgen_env with the necessary packages. Please note that it might take a few minutes for the environment to be created
    ```sh
    conda env create --file environment.yaml
    ```
@@ -105,7 +107,7 @@ The configuration parameters have the following functionality
 
 ```
 ### Running in a Jupyter Notebook Environment
-You can also run the code in jupyter notebook. Details about setting up your own workflow in jupyter notebook can be found in the notebooks provided. Check the demo notebook for general usage.  
+You can also run the code in jupyter notebook. Details about setting up your own workflow in Jupyter Notebook can be found in the notebooks provided. Check the demo notebook for general usage.  
 
 <!-- CONTRIBUTING -->
 ## Contributing
