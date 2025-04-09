@@ -10,7 +10,7 @@
 <br />
 <p align="center">
  <!-- <img src="" alt="logo" align="center"> -->
-  <h3 align="center">Becoming a ChemRxnSAGE: A Novel Framework for De Novo Chemical Reaction Generation and Evaluation</h3>
+  <h3 align="center">ChemRxnSAGE: A Novel Framework for De Novo Chemical Reaction Generation and Evaluation</h3>
 
   <p align="center">
     <br />
