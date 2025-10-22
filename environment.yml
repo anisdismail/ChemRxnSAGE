@@ -18,3 +18,4 @@ dependencies:
     - ipykernel
     - vendi_score==0.0.3
     - statsmodels==0.14.2
+    - notebook==7.4.3

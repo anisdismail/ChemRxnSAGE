@@ -1,0 +1,8 @@
+N#Cc1ncccn1>>CC(=O)O
+N#Cc1ncccn1>>NCc1ncccn1
+CI.CO>>COC
+C=COC(C)=O>>C=Cc1ccccc1
+CCCCCCCCCCO>>CCCCCCCCCC
+C=COC(C)=O>>C=CO
+CCCCBr.OCCCO>>CCCCOCCCO
+NC(=O)c1cnccn1>>CC(=O)O

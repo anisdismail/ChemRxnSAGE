@@ -13,8 +13,22 @@ https://github.com/jxhe/vae-lagging-encoder
 class LSTMDecoder(nn.Module):
     """LSTM decoder with constant-length batching"""
 
-    def __init__(self, model_init, emb_init, BOS_token, EOS_token, embed_dim, 
-                 hidden_dim, latent_dim, seq_len, vocab_size, dropout_in, dropout_out,use_cuda):
+    def __init__(
+        self,
+        model_init,
+        emb_init,
+        BOS_token,
+        EOS_token,
+        embed_dim,
+        hidden_dim,
+        latent_dim,
+        seq_len,
+        vocab_size,
+        dropout_in,
+        dropout_out,
+        use_cuda,
+        PAD_token,
+    ):
         super().__init__()
         self.ni = embed_dim
         self.nh = hidden_dim
@@ -22,32 +36,30 @@ class LSTMDecoder(nn.Module):
         self.seq_len = seq_len
         self.bos_token = BOS_token
         self.eos_token = EOS_token
+        self.pad_token = PAD_token
         self.device = torch.device("cuda" if use_cuda else "cpu")
 
         # no padding when setting padding_idx to -1
-        self.embed = nn.Embedding(
-            vocab_size, self.ni, padding_idx=-1)
+        self.embed = nn.Embedding(vocab_size, self.ni, padding_idx=-1)
 
         self.dropout_in = nn.Dropout(dropout_in)
         self.dropout_out = nn.Dropout(dropout_out)
 
         # for initializing hidden state and cell
-        self.trans_linear = nn.Linear(
-            self.nz, self.nh, bias=False)
+        self.trans_linear = nn.Linear(self.nz, self.nh, bias=False)
 
         # concatenate z with input
-        self.lstm = nn.LSTM(input_size=self.ni + self.nz,
-                            hidden_size=self.nh,
-                            num_layers=1,
-                            batch_first=True)
+        self.lstm = nn.LSTM(
+            input_size=self.ni + self.nz,
+            hidden_size=self.nh,
+            num_layers=1,
+            batch_first=True,
+        )
 
         # prediction layer
-        self.pred_linear = nn.Linear(
-            self.nh, vocab_size, bias=False)
+        self.pred_linear = nn.Linear(self.nh, vocab_size, bias=False)
 
-        vocab_mask = torch.ones(vocab_size)
-        # vocab_mask[vocab['[PAD]']] = 0
-        self.loss = nn.CrossEntropyLoss(weight=vocab_mask, reduction='none')
+        self.loss = nn.CrossEntropyLoss(ignore_index=self.pad_token, reduction="none")
 
         self.reset_parameters(model_init, emb_init)
 
@@ -76,15 +88,20 @@ class LSTMDecoder(nn.Module):
             z_ = z.expand(batch_size, seq_len, self.nz)
 
         else:
-            word_embed = word_embed.unsqueeze(1).expand(batch_size, n_sample, seq_len, self.ni) \
-                                   .contiguous()
+            word_embed = (
+                word_embed.unsqueeze(1)
+                .expand(batch_size, n_sample, seq_len, self.ni)
+                .contiguous()
+            )
 
             # (batch_size * n_sample, seq_len, ni)
-            word_embed = word_embed.view(
-                batch_size * n_sample, seq_len, self.ni)
+            word_embed = word_embed.view(batch_size * n_sample, seq_len, self.ni)
 
-            z_ = z.unsqueeze(2).expand(batch_size, n_sample,
-                                       seq_len, self.nz).contiguous()
+            z_ = (
+                z.unsqueeze(2)
+                .expand(batch_size, n_sample, seq_len, self.nz)
+                .contiguous()
+            )
             z_ = z_.view(batch_size * n_sample, seq_len, self.nz)
 
         # (batch_size * n_sample, seq_len, ni + nz)
@@ -104,6 +121,7 @@ class LSTMDecoder(nn.Module):
 
         return output_logits
 
+    # TODO: fix decoding to put padding token at the end of the sequence instead of zeros
     def sample_decode(self, z):
         """sampling decoding from z
         Args:
@@ -123,7 +141,8 @@ class LSTMDecoder(nn.Module):
 
         # Initialize decoder input
         decoder_input = torch.full(
-            (batch_size, 1), self.bos_token, dtype=torch.long, device=self.device)
+            (batch_size, 1), self.bos_token, dtype=torch.long, device=self.device
+        )
 
         # Precompute z for concatenation to avoid repeating this inside the loop
         z_unsqueezed = z.unsqueeze(1)
@@ -133,13 +152,12 @@ class LSTMDecoder(nn.Module):
 
         # Tensor to store the final output sequences
         output_sequences = torch.zeros(
-            (batch_size, self.seq_len+1), dtype=torch.long, device=self.device)
+            (batch_size, self.seq_len + 1), dtype=torch.long, device=self.device
+        )
 
         # Tensor to track if the decoding should continue for each batch item
-        active_mask = torch.ones(
-            batch_size, dtype=torch.bool, device=self.device)
+        active_mask = torch.ones(batch_size, dtype=torch.bool, device=self.device)
         while length_c <= self.seq_len and active_mask.any():
-
             # Embedding and concatenation
             word_embed = self.embed(decoder_input)
             word_embed = torch.cat((word_embed, z_unsqueezed), dim=-1)
@@ -150,8 +168,7 @@ class LSTMDecoder(nn.Module):
 
             # Sampling
             sample_prob = F.softmax(decoder_output, dim=1)
-            sample_index = torch.multinomial(
-                sample_prob, num_samples=1).squeeze(1)
+            sample_index = torch.multinomial(sample_prob, num_samples=1).squeeze(1)
 
             # Store outputs
             output_sequences[:, length_c - 1] = sample_index * active_mask
@@ -169,9 +186,7 @@ class LSTMDecoder(nn.Module):
         # Convert the output_sequences tensor into a list of lists
         decoded_batch = output_sequences.tolist()
 
-        decoded_batch = [
-            [token for token in sequence] for sequence in decoded_batch
-        ]
+        decoded_batch = [[token for token in sequence] for sequence in decoded_batch]
 
         return decoded_batch
 
@@ -184,8 +199,6 @@ class LSTMDecoder(nn.Module):
             loss: (batch_size, n_sample). Loss
             across different sentence and z
         """
-
-        # TODO: understand what is this doing
         # remove end symbol
         src = x[:, :-1]
 
@@ -202,12 +215,15 @@ class LSTMDecoder(nn.Module):
             tgt = tgt.contiguous().view(-1)
         else:
             # (batch_size * n_sample * seq_len)
-            tgt = tgt.unsqueeze(1).expand(batch_size, n_sample, seq_len) \
-                .contiguous().view(-1)
+            tgt = (
+                tgt.unsqueeze(1)
+                .expand(batch_size, n_sample, seq_len)
+                .contiguous()
+                .view(-1)
+            )
 
         # (batch_size * n_sample * seq_len)
-        loss = self.loss(output_logits.view(-1, output_logits.size(2)),
-                         tgt)
+        loss = self.loss(output_logits.view(-1, output_logits.size(2)), tgt)
         # (batch_size, n_sample)
         loss = loss.view(batch_size, n_sample, -1).sum(-1)
         return loss

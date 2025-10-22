@@ -81,7 +81,7 @@ Training and evaluation data are available [here](https://drive.google.com/drive
    ```
 3. Run the following command to create a conda environment named chemgen_env with the necessary packages. Please note that it might take a few minutes for the environment to be created
    ```sh
-   conda env create --file environment.yaml
+   conda env create --file environment.yml
    ```
 4. Activate the environment
    ```sh
