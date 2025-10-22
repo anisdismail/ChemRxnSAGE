@@ -3,17 +3,33 @@ import torch.nn as nn
 
 
 class LSTM_LM(nn.Module):
-
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers, use_cuda, dropout_prob, BOS_TOKEN, EOS_TOKEN):
+    def __init__(
+        self,
+        vocab_size,
+        embedding_dim,
+        hidden_dim,
+        num_layers,
+        use_cuda,
+        dropout_prob,
+        BOS_TOKEN,
+        EOS_TOKEN,
+        PAD_TOKEN,
+    ):
         super().__init__()
         self.BOS_TOKEN = BOS_TOKEN
         self.EOS_TOKEN = EOS_TOKEN
+        self.PAD_TOKEN = PAD_TOKEN
         self.hidden_dim = hidden_dim
         self.device = torch.device("cuda" if use_cuda else "cpu")
         self.num_layers = num_layers
         self.embed = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm_1 = nn.LSTM(embedding_dim, hidden_dim,
-                              num_layers, dropout=dropout_prob, batch_first=True)
+        self.lstm_1 = nn.LSTM(
+            embedding_dim,
+            hidden_dim,
+            num_layers,
+            dropout=dropout_prob,
+            batch_first=True,
+        )
         self.dense = nn.Linear(hidden_dim, vocab_size)
         self.dropout = nn.Dropout(p=dropout_prob)
         self.log_softmax = nn.LogSoftmax(dim=1)
@@ -35,8 +51,7 @@ class LSTM_LM(nn.Module):
         out, _ = self.lstm_1(emb, (h0, c0))
         out = self.dropout(out)
         # (batch_size*seq_len) * vocab_size
-        out = self.log_softmax(
-            self.dense(out.contiguous().view(-1, self.hidden_dim)))
+        out = self.log_softmax(self.dense(out.contiguous().view(-1, self.hidden_dim)))
         return out
 
     def step(self, x, h, c):
@@ -57,8 +72,7 @@ class LSTM_LM(nn.Module):
         # out: batch_size * 1 * hidden_dim
         out, (h, c) = self.lstm_1(emb, (h, c))
         # batch_size * vocab_size
-        out = self.log_softmax(
-            self.dense(out.contiguous().view(-1, self.hidden_dim)))
+        out = self.log_softmax(self.dense(out.contiguous().view(-1, self.hidden_dim)))
         return out, h, c
 
     def init_hidden(self, batch_size):
@@ -71,19 +85,14 @@ class LSTM_LM(nn.Module):
         for param in self.parameters():
             param.data.uniform_(-0.05, 0.05)
 
+    """
     def sample(self, batch_size, seq_len, generator, x=None):
-        """
-        Samples the network and returns a batch of samples of length seq_len.
-
-        Outputs: out
-            - out: (batch_size * seq_len)
-        """
-
         samples = []
         if x is None:
             h, c = self.init_hidden(batch_size)
-            x = torch.full((batch_size, 1), self.BOS_TOKEN,
-                           dtype=torch.int64, device=self.device)
+            x = torch.full(
+                (batch_size, 1), self.BOS_TOKEN, dtype=torch.int64, device=self.device
+            )
             for _ in range(seq_len):
                 out, h, c = self.step(x, h, c)
                 prob = torch.exp(out)
@@ -106,58 +115,56 @@ class LSTM_LM(nn.Module):
         out = torch.cat(samples, dim=1)  # along the batch_size dimension
         return out
 
-#    def sample(self, batch_size, seq_len, generator, x=None):
-        """
-        Samples the network and returns a batch of samples of length seq_len.
+    """
 
-        Outputs: out
-            - out: (batch_size * seq_len)
-        """
+    def sample(self, batch_size, seq_len, generator, x=None):
+        samples = []
+        finished = torch.zeros(batch_size, dtype=torch.bool, device=self.device)
 
-
-"""        # Initialize hidden states
-        h, c = self.init_hidden(batch_size if x is None else x.size(0))
-        # Prepare the input tensor
         if x is None:
-            x = torch.full((batch_size, 1), self.BOS_TOKEN,
-                           dtype=torch.int64, device=self.device)
-            given_len = 0
+            h, c = self.init_hidden(batch_size)
+            x = torch.full(
+                (batch_size, 1), self.BOS_TOKEN, dtype=torch.int64, device=self.device
+            )
+            for _ in range(seq_len):
+                out, h, c = self.step(x, h, c)
+                prob = torch.exp(out)
+
+                # Prevent generating further tokens for finished sequences
+                prob[finished] = 0
+                prob[finished, self.PAD_TOKEN] = 1  # force PAD_TOKEN for finished seqs
+
+                x = torch.multinomial(prob, 1, generator=generator)
+                samples.append(x)
+
+                # Update finished mask
+                finished |= x.squeeze(1) == self.EOS_TOKEN
+
+            out = torch.cat(samples, dim=1)
+            return out
+
         else:
+            h, c = self.init_hidden(x.size(0))
             given_len = x.size(1)
-            x = x[:, -1:]  # Start sampling from the last provided token
+            finished = torch.zeros(x.size(0), dtype=torch.bool, device=self.device)
 
-        # Vector to store the generated sequence
-        output_samples = torch.zeros(
-            batch_size, seq_len, dtype=torch.int64, device=self.device)
+            lis = x.chunk(x.size(1), dim=1)
+            for i in range(given_len):
+                out, h, c = self.step(lis[i], h, c)
+                samples.append(lis[i])
+                finished |= lis[i].squeeze(1) == self.EOS_TOKEN
 
-        if given_len > 0:
-            output_samples[:, :given_len] = x.squeeze(1)
+            prob = torch.exp(out)
+            for _ in range(given_len, seq_len):
+                prob[finished] = 0
+                prob[finished, self.PAD_TOKEN] = 1
 
-         # Mask to keep track of sequences that have not yet generated an EOS token
-        active_mask = torch.ones(
-            batch_size, dtype=torch.bool, device=self.device)
+                x = torch.multinomial(prob, 1, generator=generator)
+                samples.append(x)
 
-        for t in range(seq_len - given_len):
-            if not active_mask.any():
-                break  # Stop early if all sequences have generated the EOS token
+                out, h, c = self.step(x, h, c)
+                prob = torch.exp(out)
+                finished |= x.squeeze(1) == self.EOS_TOKEN
 
-            out, h, c = self.step(x, h, c)
-
-            # Apply softmax to get probability distribution
-            prob = torch.softmax(out, dim=-1)
-
-            # Sample from the distribution
-            # x = torch.multinomial(prob, 1, generator=generator)
-            x = torch.multinomial(prob, 1)
-
-            # Store the sample in the output tensor
-            output_samples[:, given_len + t] = x.squeeze(1)
-
-            # Update active_mask to stop processing sequences that have reached EOS token
-            active_mask &= (x.squeeze(1) != self.EOS_TOKEN)
-
-            # If a sequence has hit EOS, prevent further sampling by setting x to EOS
-            x = x * active_mask.unsqueeze(1)
-
-        return output_samples
-"""
+            out = torch.cat(samples, dim=1)
+            return out

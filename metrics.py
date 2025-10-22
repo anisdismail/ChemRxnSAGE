@@ -22,7 +22,7 @@ def similarity(fps, centroids, metric):
 
 
 """
-Filter 0: Logical Usage of Elements in Product
+Filter 1: Logical Usage of Elements in Product
 Make sure all elements used in product comes from reactants
 """
 
