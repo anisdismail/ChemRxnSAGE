@@ -10,6 +10,9 @@ lg.setLevel(RDLogger.CRITICAL)
 
 
 def load_rxn_classifier(main_path):
+    """
+    Load the reaction classifier model.
+    """
     rxn_classifier = torch.load(os.path.join(
         main_path, "final_nn_classifier.pth"))
     rxn_classifier.eval()
@@ -17,6 +20,9 @@ def load_rxn_classifier(main_path):
 
 
 def predict_rxn_type(model, gen_fingerprints, batch_size=64):
+    """
+    Predict the reaction type for a given set of fingerprints.
+    """
     rxn_pred = []
 
     # Convert all fingerprints to a single Tensor
@@ -43,6 +49,9 @@ def predict_rxn_type(model, gen_fingerprints, batch_size=64):
 
 
 def get_class_10_stats(rxn_pred):
+    """
+    Get the statistics for class 10.
+    """
     rxn_pred_dist = dict(pd.Series(rxn_pred).value_counts(normalize=True))
     # class 10 correspond to key 0
     return rxn_pred_dist[0] if 0 in rxn_pred_dist.keys() else 0
@@ -53,15 +62,24 @@ def get_class_10_stats(rxn_pred):
 #    return atoms
 
 def get_atoms(mol):
+    """
+    Get the atoms from a molecule.
+    """
     atoms = [atom.GetSymbol() for atom in mol.GetAtoms()]
     return atoms
 
 
 def node_match(node1, node2):
+    """
+    Check if two nodes match.
+    """
     return node1['smarts'] == node2['smarts']
 
 
 def get_rings(mol):
+    """
+    Get the rings from a molecule.
+    """
     ri = mol.GetRingInfo()
     ids = [ring for ring in ri.AtomRings()]
     smiles = [[mol.GetAtomWithIdx(i).GetSmarts()
@@ -70,6 +88,9 @@ def get_rings(mol):
 
 
 def is_ring_edge(edge, ids):
+    """
+    Check if an edge is in a ring.
+    """
     if edge is not None:
         for ring in ids:
             if edge[0][2] in ring and edge[1][2] in ring:
@@ -78,6 +99,9 @@ def is_ring_edge(edge, ids):
 
 
 def rxn_to_ring_ids(rxn):
+    """
+    Get the ring ids from a reaction.
+    """
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if len(mol) >= 1]
     prod = [mols[-1]]
@@ -138,6 +162,9 @@ def rxn_to_ring_ids(rxn):
 
 
 def get_chains(mol):
+    """
+    Get the chains from a molecule.
+    """
     carbon_chains = []
 
     def dfs(atom, visited, current_chain):
@@ -162,6 +189,9 @@ def get_chains(mol):
 
 
 def rxn_to_chain_ids(rxn):
+    """
+    Get the chain ids from a reaction.
+    """
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if len(mol) >= 1]
     prod = [mols[-1]]
@@ -195,6 +225,9 @@ def rxn_to_chain_ids(rxn):
 
 
 def is_chain_edge(edge, ids):
+    """
+    Check if an edge is in a chain.
+    """
     if edge is not None:
         for chain in ids:
             if edge[0][2] in chain and edge[1][2] in chain:
@@ -210,6 +243,9 @@ def is_chain_edge(edge, ids):
 
 
 def get_PO_bonds(mol):
+    """
+    Get the P-O bonds from a molecule.
+    """
     hit_ats = {}
 
     # Pattern for P-O single bond
@@ -224,6 +260,9 @@ def get_PO_bonds(mol):
 
 
 def is_PO_edge(edge):
+    """
+    Check if an edge is a P-O bond.
+    """
     if edge is not None:
         if edge[0][1] == "P" and edge[1][1] == "O":
             return True
@@ -233,12 +272,18 @@ def is_PO_edge(edge):
 
 
 def convert_fingerprint(row):
+    """
+    Convert a fingerprint to a numpy array.
+    """
     array = np.zeros((0,), dtype=np.int64)
     Chem.DataStructs.ConvertToNumpyArray(row["fingerprint"], array)
     return array
 
 
 def canoncalize_valid_rxns(df_gen):
+    """
+    Canoncalize the valid reactions in a DataFrame.
+    """
     df_gen_valid = df_gen[df_gen["validated"]].copy()
     df_gen_valid[['reactants', 'products']
                  ] = df_gen_valid['decoded_smiles'].str.split('>>', expand=True)

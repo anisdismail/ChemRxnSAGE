@@ -8,13 +8,16 @@ from rdkit.Chem import rdChemReactions
 from scipy.spatial.distance import cdist, jensenshannon, pdist, squareform
 from vendi_score import vendi
 
-from utils import get_atoms, get_PO_bonds, rxn_to_chain_ids, rxn_to_ring_ids
+from .utils import get_atoms, get_PO_bonds, rxn_to_chain_ids, rxn_to_ring_ids
 
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 
 
 def similarity(fps, centroids, metric):
+    """
+    Calculate the similarity between fingerprints and centroids.
+    """
     if len(fps) > 0:
         dists = cdist(fps, centroids, metric)
         return 1 - np.mean(np.min(dists, axis=1)), 1 - np.min(dists, axis=1)
@@ -28,6 +31,10 @@ Make sure all elements used in product comes from reactants
 
 
 def filter_1(rxn):
+    """
+    Filter 1: Logical Usage of Elements in Product.
+    Make sure all elements used in product comes from reactants.
+    """
     # Split the reaction string into individual molecules
     mols = re.split(r"[>>|.]", rxn)
 
@@ -73,6 +80,9 @@ Filter 2: Illogical Ring Operations
 
 
 def filter_2(rxn, thresh=0):
+    """
+    Filter 2: Illogical Ring Operations.
+    """
     # logging.info(rxn)
     all_react_ids, all_react_systems, prod_ids, prod_systems, react, react_dict = (
         rxn_to_ring_ids(rxn)
@@ -182,6 +192,9 @@ def filter_4(rxn, thresh=0):
 
 
 def filter_3(rxn, thresh=0):
+    """
+    Filter 3: Illogical Chain Operations.
+    """
     _, all_react_systems, _, prod_systems = rxn_to_chain_ids(rxn)
     new_chains = []
     # make sure all chains in product exist in reactants
@@ -260,6 +273,9 @@ def filter_5(rxn, thresh=0):
 
 
 def filter_4(rxn, thresh=0):
+    """
+    Filter 4: P-O Bond Cleavage.
+    """
     mols = re.split(r"[>>|.]", rxn)
     react = [mol for mol in mols[:-1] if mol]
     prod = mols[-1]
@@ -313,6 +329,9 @@ The reaction follows the following pattern : ....>>....
 
 
 def is_valid_rxn(rxn):
+    """
+    Check if a reaction is valid.
+    """
     # Check if the reaction format is valid using a regular expression
     if not re.fullmatch(r"[^>]+[>]{2}[^>]+", rxn):
         return False
@@ -348,6 +367,9 @@ Reaction Variety Metric
 
 
 def JSS_with_train(rxn_pred):
+    """
+    Calculate the Jensen-Shannon Similarity with the training data.
+    """
     if len(rxn_pred) > 0:
         train_data_dist = {
             10: 0.004521721751729995,
@@ -381,6 +403,9 @@ Percentage of Novel Reactions in Dataset
 
 
 def novelty_percentage(df_gen_valid, df_ref):
+    """
+    Calculate the percentage of novel reactions in the dataset.
+    """
     ref_set = set(df_ref["Reactant_Product_Frozenset"])
 
     # Check if each frozenset in df_gen_valid exists in max_200_set
@@ -399,6 +424,9 @@ Percentage of Unique Reactions in Generated Dataset
 
 
 def unique_percentage(df_gen_valid):
+    """
+    Calculate the percentage of unique reactions in the generated dataset.
+    """
     return df_gen_valid["Reactant_Product_Frozenset"].nunique() / len(
         df_gen_valid["Exists_In_Max_200"]
     )
@@ -414,6 +442,9 @@ duplication and memorization.
 
 
 def calculate_dataset_diversity(gen_fingerprints):
+    """
+    Calculate the dataset diversity using the Vendi score.
+    """
     X_sims = 1 - squareform(pdist(gen_fingerprints, metric="jaccard"))
     upper_tri_indices = np.triu_indices_from(X_sims, k=1)
     average_inter_similarity = np.mean(X_sims[upper_tri_indices])
@@ -435,6 +466,9 @@ Vendi for Score for Every Predicted Class
 
 
 def calculate_diversity_per_class(rxn_pred, gen_fingerprints):
+    """
+    Calculate the diversity per class using the Vendi score.
+    """
     rxn_pred_arr = np.array(rxn_pred)
     results = []
     for i in np.unique(rxn_pred_arr):

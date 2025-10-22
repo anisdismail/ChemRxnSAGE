@@ -57,7 +57,6 @@ using generative models, including Recurrent Neural Networks and Variational Aut
 we assess reaction feasibility through thermodynamic analysis and compare the generated reactions against existing literature to ensure relevance and novelty. By combining
 computational tools with expert-driven metrics, ChemRxnSAGE offers a comprehensive and extendable solution that advances the state of chemical reaction generation and evaluation.
 
-<!-- GETTING STARTED -->
 ## Getting Started
 
 To get a local copy up and running follow the steps below.
@@ -66,8 +65,7 @@ To get a local copy up and running follow the steps below.
 
 It is recommended to create a new virtual environment with [conda](https://www.anaconda.com/).
 
-
-Training and evaluation data are available [here](https://drive.google.com/drive/folders/1-314k6YASzLk5l3bQ2PEsRxmQ4PMlI_t?usp=sharing)
+Training and evaluation data are available [here](https://drive.google.com/drive/folders/1-314k6YASzLk5l3bQ2PEsRxmQ4PMlI_t?usp=sharing). Download the data and place it in the `data/` directory.
 
 ### Installation
 
@@ -79,22 +77,29 @@ Training and evaluation data are available [here](https://drive.google.com/drive
    ```sh
    cd ChemRxnSAGE
    ```
-3. Run the following command to create a conda environment named chemgen_env with the necessary packages. Please note that it might take a few minutes for the environment to be created
+3. Install the required packages. You can either use the `environment.yml` file to create a new conda environment, or use the `requirements.txt` file to install the packages in your existing environment.
+
+   **Using conda:**
    ```sh
    conda env create --file environment.yml
-   ```
-4. Activate the environment
-   ```sh
    conda activate chemgen_env
    ```
 
-<!-- USAGE EXAMPLES -->
+   **Using pip:**
+   ```sh
+   pip install -r requirements.txt
+   ```
+4. Install the project in editable mode:
+   ```sh
+   pip install -e .
+   ```
+
 ## Usage
 
 ### Running in command line
 To run the algorithm in command line, run the following command with a configuration file as input
    ```sh
-   python main.py --config config.json
+   chemrxnsage --config config.json
    ```
 The configuration file template is as follows
    ```json
@@ -109,17 +114,41 @@ The configuration parameters have the following functionality
 ### Running in a Jupyter Notebook Environment
 You can also run the code in jupyter notebook. Details about setting up your own workflow in Jupyter Notebook can be found in the notebooks provided. Check the demo notebook for general usage.  
 
+## Project Structure
+
+```
+├── CITATION.cff
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── data
+│   └── README.md
+├── docs
+├── notebooks
+│   ├── ...
+├── requirements.txt
+├── setup.py
+├── src
+│   └── chemrxnsage
+│       ├── __init__.py
+│       ├── dataloader.py
+│       ├── eval.py
+│       ├── generate.py
+│       ├── graph_utils.py
+│       ├── main.py
+│       ├── metrics.py
+│       ├── models
+│       │   ├── ...
+│       ├── preprocessing.py
+│       ├── train.py
+│       └── utils.py
+└── tests
+```
+
 <!-- CONTRIBUTING -->
 ## Contributing
 
-Any contributions you make are **greatly appreciated**.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
+Any contributions you make are **greatly appreciated**. Please see `CONTRIBUTING.md` for more information.
 
 
 <!--LICENSE -->

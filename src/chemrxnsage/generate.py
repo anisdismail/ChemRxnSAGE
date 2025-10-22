@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from models.LSTM.LSTM_LM import LSTM_LM
-from models.VAE.VAE import VAE
-from models.VAE.LSTM_Decoder import LSTMDecoder
-from models.VAE.LSTM_Encoder import LSTMEncoder
+from .models.LSTM.LSTM_LM import LSTM_LM
+from .models.VAE.VAE import VAE
+from .models.VAE.LSTM_Decoder import LSTMDecoder
+from .models.VAE.LSTM_Encoder import LSTMEncoder
 import sentencepiece as spm
 import logging
 import os
@@ -12,6 +12,9 @@ import numpy as np
 
 
 class LSTMLMGenerator:
+    """
+    Generator for the LSTM Language Model.
+    """
     def __init__(self, config):
         self.config = config
         spm.SentencePieceTrainer.train(
@@ -37,6 +40,9 @@ class LSTMLMGenerator:
         self.generated_path = os.path.join(config["gene_path"])
 
     def generate_samples(self, seed=42):
+        """
+        Generate samples from the LSTM Language Model.
+        """
         if self.config["cuda"]:
             rng = torch.cuda.manual_seed(seed)
         else:
@@ -54,6 +60,9 @@ class LSTMLMGenerator:
 
 
 class VAEGenerator:
+    """
+    Generator for the Variational Autoencoder.
+    """
     def __init__(self, config):
         self.config = config
         self.device = torch.device("cuda" if self.config["cuda"] else "cpu")
@@ -100,6 +109,9 @@ class VAEGenerator:
         self.generated_path = os.path.join(config["gene_path"])
 
     def generate_samples(self, seed=42):
+        """
+        Generate samples from the VAE.
+        """
         self.vae.eval()
         logging.info('begin decoding..................................')
         if self.config["cuda"]:
@@ -113,6 +125,9 @@ class VAEGenerator:
 
 
 class uniform_initializer(object):
+    """
+    Uniform initializer.
+    """
     def __init__(self, stdv):
         self.stdv = stdv
 
@@ -121,5 +136,8 @@ class uniform_initializer(object):
 
 
 class xavier_normal_initializer(object):
+    """
+    Xavier normal initializer.
+    """
     def __call__(self, tensor):
         nn.init.xavier_normal_(tensor)

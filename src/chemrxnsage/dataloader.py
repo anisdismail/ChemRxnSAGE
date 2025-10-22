@@ -4,6 +4,9 @@ import torch
 
 
 class DataIterator:
+    """
+    Data iterator for the ChemRxnSAGE framework.
+    """
 
     def __init__(self, data_file, batch_size, PAD_TOKEN):
         super(DataIterator, self).__init__()
@@ -32,6 +35,9 @@ class DataIterator:
         return data, target
 
     def get_data_num(self):
+        """
+        Get the number of data points.
+        """
         return self.data_num
 
     def __next__(self):
@@ -46,10 +52,16 @@ class DataIterator:
         return data, target
 
     def reset(self):
+        """
+        Reset the iterator.
+        """
         self.idx = 0
         random.shuffle(self.data_lis)
 
     def read_file(self, data_file):
+        """
+        Read the data file.
+        """
         with open(data_file, 'r') as file:
             lines = file.readlines()
         lis = [[int(float(s)) for s in list(line.strip().split())]
@@ -57,6 +69,9 @@ class DataIterator:
         return lis
 
     def sample(self):
+        """
+        Sample a batch of data.
+        """
         # Select random indices for the batch
         index = random.sample(self.indices, self.batch_size)
         

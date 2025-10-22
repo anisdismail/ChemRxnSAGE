@@ -1,32 +1,99 @@
-old/*
-Liu_Kheyer_Retrosynthesis_Data/*
-model_weights/*
-old_train.py
-graph_utils.py
-__pycache__/*
-/models/VAE/__pycache__
-Chem_data_generation_SeqGAN_2_layers_LSTM_v2.ipynb
-Chem_data_generation_VAE_v4.ipynb
-eval_old.py
-train_ref_dataset.csv
-results
-old/*
-Liu_Kheyer_Retrosynthesis_Data/*
-model_weights/*
-old_train.py
-graph_utils.py
-__pycache__/*
-models/VAE/__pycache__
-results/*
-train_ref_dataset.csv
-models/LSTM/__pycache__/*
-models/Transformer/__pycache__
-eval_old.py
-Chem_data_generation_SeqGAN_2_layers_LSTM_v2.ipynb
-Chem_data_generation_VAE_v4.ipynb
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project data
+data/
+models/
+results/
+
+# Other
+.DS_Store
+*.model
+*.vocab
+old/
+model_weights/
 rndforest_classifier.reg
 cache_dir
 outputs
 runs
-models/__pycache__
-models/LSTM/__pycache__/*
+train_ref_dataset.csv
+Liu_Kheyer_Retrosynthesis_Data/

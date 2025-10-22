@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import sentencepiece as spm
 
-from metrics import (
+from .metrics import (
     JSS_with_train,
     calculate_dataset_diversity,
     calculate_diversity_per_class,
@@ -18,13 +18,16 @@ from metrics import (
     similarity,
     unique_percentage,
 )
-from preprocessing import create_fingerprints
-from utils import canoncalize_valid_rxns, load_rxn_classifier, predict_rxn_type
+from .preprocessing import create_fingerprints
+from .utils import canoncalize_valid_rxns, load_rxn_classifier, predict_rxn_type
 
 pd.options.mode.use_inf_as_na = True
 
 
 class Evaluator:
+    """
+    Evaluator for the ChemRxnSAGE framework.
+    """
     def __init__(self, config):
         self.config = config
         with open(
@@ -66,10 +69,16 @@ class Evaluator:
         self.rxn_classifier = load_rxn_classifier(self.main_path)
 
     def load_generated_dataset(self, generated_file):
+        """
+        Load the generated dataset.
+        """
         with open(generated_file, "r", encoding="utf-8") as f:
             self.gen_data = np.loadtxt(f)
 
     def filters_pipeline(self):
+        """
+        Run the filters pipeline.
+        """
         self.df["isValid"] = self.df["decoded_smiles"].apply(is_valid_rxn)
         self.df["validated"] = self.df["isValid"]
         self.df["Filter_1"] = self.df.apply(
@@ -90,6 +99,9 @@ class Evaluator:
         self.df["validated"] &= self.df["Filter_4"]
 
     def process_results(self, use_filters=True):
+        """
+        Process the results.
+        """
         self.df = pd.DataFrame()
         # decode ids into smiles
         # self.df["decoded_smiles"] = np.apply_along_axis(
@@ -190,6 +202,9 @@ class Evaluator:
     """
 
     def validity_statistics(self):
+        """
+        Calculate validity statistics.
+        """
         val = self.df["isValid"].mean()
         fil1 = self.df["Filter_1"].sum() / self.df["isValid"].sum()
         fil2 = self.df["Filter_2"].sum() / self.df["Filter_1"].sum()
@@ -199,6 +214,9 @@ class Evaluator:
         return val, fil1, fil2, fil3, fil4, validated
 
     def generate_metrics_evaluation(self, generated_file):
+        """
+        Generate metrics evaluation.
+        """
         self.results = {
             "avg_similarity": 0.0,
             "avg_str_similarity": 0.0,
@@ -365,6 +383,9 @@ class Evaluator:
 """
 
     def format_results(self):
+        """
+        Format the results.
+        """
         results_str = (
             f"JSS={self.results['jss']:.4f}, "
             f"Sim={self.results['avg_similarity']:.4f}, "

@@ -1,4 +1,4 @@
-from utils import convert_fingerprint
+from .utils import convert_fingerprint
 import sys
 import numpy as np
 from rdkit import Chem
@@ -9,6 +9,9 @@ lg.setLevel(RDLogger.CRITICAL)
 
 
 def create_fingerprints(df, tokenizer, use_filters, seq_len):
+    """
+    Create fingerprints for the reactions in the DataFrame.
+    """
     pad_token = tokenizer.encode_as_ids("[PAD]")[1]
     # only process filtered data
     df["validated"] = df["isValid"]
@@ -50,6 +53,9 @@ def create_fingerprints(df, tokenizer, use_filters, seq_len):
 
 #buggy method - retired
 def decode_ids_np(sequence, tokenizer):
+    """
+    Decode a sequence of ids into a string.
+    """
     decoded = tokenizer.decode_ids(sequence.astype(int).tolist())
     for token in ["[PAD]", "[EOS]", "[BOS]", " ⁇ ", "⁇", " "]:
         decoded = decoded.replace(token, '')

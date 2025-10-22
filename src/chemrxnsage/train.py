@@ -9,16 +9,19 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import torch.nn.functional as F
 
-from dataloader import DataIterator
-from eval import Evaluator
-from models.LSTM.LSTM_LM import LSTM_LM
-from models.Transformer.transformer import Transformer
-from models.VAE.LSTM_Decoder import LSTMDecoder
-from models.VAE.LSTM_Encoder import LSTMEncoder
-from models.VAE.VAE import VAE
+from .dataloader import DataIterator
+from .eval import Evaluator
+from .models.LSTM.LSTM_LM import LSTM_LM
+from .models.Transformer.transformer import Transformer
+from .models.VAE.LSTM_Decoder import LSTMDecoder
+from .models.VAE.LSTM_Encoder import LSTMEncoder
+from .models.VAE.VAE import VAE
 
 
 class LSTMLMTrainer:
+    """
+    Trainer for the LSTM Language Model.
+    """
     def __init__(self, config):
         self.config = config
         self.train_path = os.path.join(config["train_path"])
@@ -82,6 +85,9 @@ class LSTMLMTrainer:
         )
 
     def train(self):
+        """
+        Train the LSTM Language Model.
+        """
         logging.info("#####################################################")
         logging.info("Start training generator with MLE...")
         logging.info("#####################################################\n")
@@ -103,6 +109,9 @@ class LSTMLMTrainer:
         logging.info("#####################################################\n\n")
 
     def generate_and_evaluate(self):
+        """
+        Generate samples and evaluate them.
+        """
         # Initialize metrics dictionary
         metrics = {
             "JSS": [],
@@ -215,6 +224,9 @@ class LSTMLMTrainer:
         return avg_loss
 
     def generate_samples(self, seed=42):
+        """
+        Generate samples from the LSTM Language Model.
+        """
         self.generator.eval()
         samples = []
         if self.config["cuda"]:
@@ -238,6 +250,9 @@ class LSTMLMTrainer:
 
 
 class VAETrainer:
+    """
+    Trainer for the Variational Autoencoder.
+    """
     def __init__(self, config):
         self.config = config
         self.train_path = os.path.join(self.config["train_path"])
@@ -342,6 +357,9 @@ class VAETrainer:
         self.evaluator = Evaluator(config)
 
     def eval_nll(self, data_iter):
+        """
+        Evaluate the VAE with NLL.
+        """
         self.vae.eval()
         with torch.no_grad():
             report_kl_loss, report_rec_loss = 0, 0
@@ -380,6 +398,9 @@ class VAETrainer:
             return test_loss, nll, kl, ppl
 
     def train(self):
+        """
+        Train the VAE.
+        """
         # Initialize training state
         best_metrics = {"loss": float("inf"), "kl": 0, "nll": 0, "ppl": 0}
         pre_mi = 0
@@ -462,6 +483,9 @@ class VAETrainer:
             )
 
     def generate_and_evaluate(self):
+        """
+        Generate samples and evaluate them.
+        """
         # Initialize metrics dictionary
         metrics = {
             "JSS": [],
@@ -531,6 +555,9 @@ class VAETrainer:
             )
 
     def perform_aggressive_training(self, data):
+        """
+        Perform aggressive training.
+        """
         sub_iter = 1
         burn_pre_loss = 1e4
         burn_cur_loss = 0
@@ -556,6 +583,9 @@ class VAETrainer:
             sub_iter += 1
 
     def burn_in_step(self, batch_data_enc):
+        """
+        Perform a burn-in step.
+        """
         loss, _, _ = self.vae.loss(
             batch_data_enc,
             kl_weight=self.config["kl_start"],
@@ -571,6 +601,9 @@ class VAETrainer:
         return burn_loss
 
     def compute_loss(self, data, kl_weight):
+        """
+        Compute the loss.
+        """
         loss, loss_rc, loss_kl = self.vae.loss(
             src=data,
             kl_weight=kl_weight,
@@ -580,6 +613,9 @@ class VAETrainer:
         return loss, loss_rc, loss_kl
 
     def optimize_loss(self, loss):
+        """
+        Optimize the loss.
+        """
         self.enc_optimizer.zero_grad()
         self.dec_optimizer.zero_grad()
 
@@ -592,10 +628,16 @@ class VAETrainer:
         self.dec_optimizer.step()
 
     def update_report_metrics(self, report_metrics, loss_rc, loss_kl):
+        """
+        Update the report metrics.
+        """
         report_metrics["rec_loss"] += loss_rc.sum().item()
         report_metrics["kl_loss"] += loss_kl.sum().item()
 
     def monitor_mutual_information(self, pre_mi):
+        """
+        Monitor the mutual information.
+        """
         self.vae.eval()
         cur_mi = self.vae.calc_mi_oneshot(data_loader=self.eval_iter)
         self.vae.train()
@@ -606,6 +648,9 @@ class VAETrainer:
         return cur_mi
 
     def evaluate(self):
+        """
+        Evaluate the VAE.
+        """
         self.vae.eval()
         with torch.no_grad():
             mi = self.vae.calc_mi_oneshot(data_loader=self.eval_iter)
@@ -616,6 +661,9 @@ class VAETrainer:
         return {"loss": loss, "nll": nll, "kl": kl, "ppl": ppl}
 
     def check_improvement(self, eval_metrics, best_metrics):
+        """
+        Check for improvement.
+        """
         if eval_metrics["loss"] < best_metrics["loss"]:
             best_metrics.update(eval_metrics)
             logging.info(
@@ -623,6 +671,9 @@ class VAETrainer:
             )
 
     def generate_samples(self, seed=42):
+        """
+        Generate samples from the VAE.
+        """
         self.vae.eval()
         if self.config["cuda"]:
             rng = torch.cuda.manual_seed(seed)
@@ -656,6 +707,9 @@ class VAETrainer:
 
 
 class uniform_initializer(object):
+    """
+    Uniform initializer.
+    """
     def __init__(self, stdv):
         self.stdv = stdv
 
@@ -664,11 +718,17 @@ class uniform_initializer(object):
 
 
 class xavier_normal_initializer(object):
+    """
+    Xavier normal initializer.
+    """
     def __call__(self, tensor):
         nn.init.xavier_normal_(tensor)
 
 
 class TransformerTrainer:
+    """
+    Trainer for the Transformer.
+    """
     def __init__(self, config):
         self.config = config
 
@@ -732,6 +792,9 @@ class TransformerTrainer:
         self.evaluator = Evaluator(config)
 
     def train(self):
+        """
+        Train the Transformer.
+        """
         logging.info("### Starting Transformer training ###")
         for epoch in range(1, self.config["epochs"] + 1):
             train_loss = self.train_epoch()
@@ -751,6 +814,9 @@ class TransformerTrainer:
             )
 
     def train_epoch(self):
+        """
+        Train the Transformer for one epoch.
+        """
         self.model.train()
         total_loss = 0.0
 
@@ -775,6 +841,9 @@ class TransformerTrainer:
         return total_loss / len(self.train_iter)
 
     def evaluate(self):
+        """
+        Evaluate the Transformer.
+        """
         self.model.eval()
         total_loss = 0.0
 
@@ -793,6 +862,9 @@ class TransformerTrainer:
         return total_loss / len(self.eval_iter)
 
     def generate_and_evaluate(self):
+        """
+        Generate samples and evaluate them.
+        """
         # Initialize metrics dictionary
         metrics = {
             "JSS": [],
@@ -862,6 +934,9 @@ class TransformerTrainer:
             )
 
     def generate_samples(self, seed):
+        """
+        Generate samples from the Transformer.
+        """
         if self.config["cuda"]:
             rng = torch.cuda.manual_seed(seed)
         else:
