@@ -3,8 +3,8 @@ message: "If you use this software, please cite it as below."
 authors:
   - family-names: "Ismail"
     given-names: "Anis"
-    orcid: "https://orcid.org/0000-0002-0994-7485"
-title: "ChemRxnSAGE: A Novel Framework for De Novo Chemical Reaction Generation and Evaluation"
+    orcid: "https://orcid.org/0009-0006-6990-0893"
+title: "Automating Deep Learning-Based Generation and Evaluation of De Novo Chemical Reaction with ChemRxnSAGE"
 version: 0.1.0
-date-released: 2023-11-01
+date-released: 2025-10-27
 repository-code: "https://github.com/anisdismail/ChemRxnSAGE"

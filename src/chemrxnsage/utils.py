@@ -207,7 +207,7 @@ def rxn_to_chain_ids(rxn):
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
             mol = Chem.MolFromSmarts(mol)
             if mol is None:
-                print("Error!", rxn)
+                lg.error("Error!", rxn)
             ids, smiles = get_chains(mol)
             all_react_systems += smiles
             all_react_ids += ids
@@ -217,7 +217,7 @@ def rxn_to_chain_ids(rxn):
                 Chem.MolFromSmiles(mol), isomericSmiles=False)
             mol = Chem.MolFromSmarts(mol)
             if mol is None:
-                print("Error!", rxn)
+                lg.error("Error!", rxn)
             ids, smiles = get_chains(mol)
             prod_systems += smiles
             prod_ids += ids

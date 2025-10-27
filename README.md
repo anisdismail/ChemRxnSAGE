@@ -101,18 +101,8 @@ To run the algorithm in command line, run the following command with a configura
    ```sh
    chemrxnsage --config config.json
    ```
-The configuration file template is as follows
-   ```json
-{
-    
-}
-   ```
-The configuration parameters have the following functionality
-```sh
-
-```
 ### Running in a Jupyter Notebook Environment
-You can also run the code in jupyter notebook. Details about setting up your own workflow in Jupyter Notebook can be found in the notebooks provided. Check the demo notebook for general usage.  
+You can also run the code in jupyter notebook. Details about setting up your own workflow in Jupyter Notebook can be found in the notebooks provided. Check the demo notebooks for general usage.  
 
 ## Project Structure
 
@@ -142,7 +132,6 @@ You can also run the code in jupyter notebook. Details about setting up your own
 │       ├── preprocessing.py
 │       ├── train.py
 │       └── utils.py
-└── tests
 ```
 
 <!-- CONTRIBUTING -->
@@ -161,10 +150,6 @@ Distributed under the GPL-3 License. See `LICENSE` for more information.
 ## Contact
 
 [Anis Ismail](https://linkedin.com/in/anisdimail) - anis[dot]ismail[at]kuleuven[dot]be
-
-
-
-
 
 
 

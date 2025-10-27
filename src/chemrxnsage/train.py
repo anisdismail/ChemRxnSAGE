@@ -27,7 +27,6 @@ class LSTMLMTrainer:
         self.train_path = os.path.join(config["train_path"])
         self.val_path = os.path.join(config["val_path"])
         self.generated_path = os.path.join(config["gene_path"])
-        print("Generated path:", self.generated_path)
 
         with open(
             os.path.join(config["main_dir"], "train", "centroids_200.data"),
