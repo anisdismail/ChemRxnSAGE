@@ -27,6 +27,7 @@ class LSTMLMTrainer:
         self.train_path = os.path.join(config["train_path"])
         self.val_path = os.path.join(config["val_path"])
         self.generated_path = os.path.join(config["gene_path"])
+        print("Generated path:", self.generated_path)
 
         with open(
             os.path.join(config["main_dir"], "train", "centroids_200.data"),
@@ -40,9 +41,10 @@ class LSTMLMTrainer:
             encoding="utf-8",
         ) as f:
             self.centroids_strings = np.loadtxt(f)
-
+        # Load tokenizer
         spm.SentencePieceTrainer.train(
-            "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
+            f"--input={self.config['vocab_path']}  --model_prefix=m "
+            "--user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
         )
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load("m.model")
@@ -233,6 +235,10 @@ class LSTMLMTrainer:
             rng = torch.cuda.manual_seed(seed)
         else:
             rng = torch.manual_seed(seed)
+        if self.config["n_gen_samples"] % self.config["batch_size"] != 0:
+            raise ValueError(
+                "n_gen_samples must be divisible by batch_size for generation."
+            )
         for _ in range(int(self.config["n_gen_samples"] / self.config["batch_size"])):
             sample = (
                 self.generator.sample(
@@ -273,9 +279,10 @@ class VAETrainer:
             encoding="utf-8",
         ) as f:
             self.centroids_strings = np.loadtxt(f)
-
+        # Load tokenizer
         spm.SentencePieceTrainer.train(
-            "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
+            f"--input={self.config['vocab_path']}  --model_prefix=m "
+            "--user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
         )
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load("m.model")
@@ -742,7 +749,7 @@ class TransformerTrainer:
 
         # Load tokenizer
         spm.SentencePieceTrainer.train(
-            "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m "
+            f"--input={self.config['vocab_path']}  --model_prefix=m "
             "--user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
         )
         self.tokenizer = spm.SentencePieceProcessor()

@@ -42,8 +42,10 @@ class Evaluator:
             encoding="utf-8",
         ) as f:
             self.centroids_strings = np.loadtxt(f)
+        # Load tokenizer
         spm.SentencePieceTrainer.train(
-            "--input=Liu_Kheyer_Retrosynthesis_Data/vocab2.txt --model_prefix=m  --user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
+            f"--input={self.config['vocab_path']}  --model_prefix=m "
+            "--user_defined_symbols=[BOS],[EOS],[PAD],. --vocab_size=56 --bos_id=-1 --eos_id=-1"
         )
         self.tokenizer = spm.SentencePieceProcessor()
         self.tokenizer.load("m.model")

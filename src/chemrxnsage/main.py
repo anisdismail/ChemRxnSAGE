@@ -101,7 +101,7 @@ def main():
                       for param, value in params.items()}
     else:
         config = vars(args)
-
+    os.makedirs(config["save_path"], exist_ok=True)
     # set up logging
     if config.get("log_path"):
         logging.basicConfig(level=logging.INFO,
@@ -113,7 +113,7 @@ def main():
                             format='%(asctime)s - %(levelname)s - %(message)s',
                             handlers=[logging.StreamHandler()])
 
-    config["cuda"] = not config["no_cuda"] and torch.cuda.is_available()
+    config["cuda"] = config["cuda"] and torch.cuda.is_available()
 
     logging.info(json.dumps(config, indent=4))
 
